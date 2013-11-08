@@ -42,7 +42,8 @@ func main() {
     if err != nil {
         log.Fatal(err.Error())
     }
-    _, err = fmt.Printf("Debug: %v\nPort: %d\nUser: %s\nRate: %f\n", s.Debug, s.Port, s.User, s.Rate)
+    format := "Debug: %v\nPort: %d\nUser: %s\nRate: %f\n"
+    _, err = fmt.Printf(format, s.Debug, s.Port, s.User, s.Rate)
     if err != nil {
         log.Fatal(err.Error())
     }
