@@ -13,11 +13,11 @@ type Specification struct {
 }
 
 func TestProcess(t *testing.T) {
+	var s Specification
 	os.Setenv("ENV_CONFIG_DEBUG", "true")
 	os.Setenv("ENV_CONFIG_PORT", "8080")
 	os.Setenv("ENV_CONFIG_RATE", "0.5")
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
-	var s Specification
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -31,9 +31,17 @@ func TestProcess(t *testing.T) {
 	if s.Rate != 0.5 {
 		t.Errorf("expected %f, got %v", 0.5, s.Rate)
 	}
-
 	if s.User != "Kelsey" {
 		t.Errorf("expected %s, got %s", "Kelsey", s.User)
+	}
+}
+
+func TestParseErrorInt(t *testing.T) {
+	var s Specification
+	os.Setenv("ENV_CONFIG_PORT", "string")
+	err := Process("env_config", &s)
+	if v, ok := err.(*ParseError); !ok {
+		t.Errorf("expected ParseError, got %v", v)
 	}
 }
 
