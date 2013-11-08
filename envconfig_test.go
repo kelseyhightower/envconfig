@@ -17,6 +17,7 @@ type Specification struct {
 
 func TestProcess(t *testing.T) {
 	var s Specification
+	os.Clearenv()
 	os.Setenv("ENV_CONFIG_DEBUG", "true")
 	os.Setenv("ENV_CONFIG_PORT", "8080")
 	os.Setenv("ENV_CONFIG_RATE", "0.5")
@@ -39,12 +40,54 @@ func TestProcess(t *testing.T) {
 	}
 }
 
+func TestParseErrorBool(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEBUG", "string")
+	err := Process("env_config", &s)
+	v, ok := err.(*ParseError)
+	if !ok {
+		t.Errorf("expected ParseError, got %v", v)
+	}
+	if v.FieldName != "Debug" {
+		t.Errorf("expected %s, got %v", "Debug", v.FieldName)
+	}
+	if s.Debug != false {
+		t.Errorf("expected %v, got %v", false, s.Debug)
+	}
+}
+
+func TestParseErrorFloat32(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_RATE", "string")
+	err := Process("env_config", &s)
+	v, ok := err.(*ParseError)
+	if !ok {
+		t.Errorf("expected ParseError, got %v", v)
+	}
+	if v.FieldName != "Rate" {
+		t.Errorf("expected %s, got %v", "Rate", v.FieldName)
+	}
+	if s.Rate != 0 {
+		t.Errorf("expected %v, got %v", 0, s.Rate)
+	}
+}
+
 func TestParseErrorInt(t *testing.T) {
 	var s Specification
+	os.Clearenv()
 	os.Setenv("ENV_CONFIG_PORT", "string")
 	err := Process("env_config", &s)
-	if v, ok := err.(*ParseError); !ok {
+	v, ok := err.(*ParseError)
+	if !ok {
 		t.Errorf("expected ParseError, got %v", v)
+	}
+	if v.FieldName != "Port" {
+		t.Errorf("expected %s, got %v", "Port", v.FieldName)
+	}
+	if s.Port != 0 {
+		t.Errorf("expected %v, got %v", 0, s.Port)
 	}
 }
 

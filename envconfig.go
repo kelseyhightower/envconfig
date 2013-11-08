@@ -39,6 +39,9 @@ func Process(prefix string, spec interface{}) error {
 			fieldName := typeOfSpec.Field(i).Name
 			key := fmt.Sprintf("%s_%s", prefix, fieldName)
 			value := os.Getenv(strings.ToUpper(key))
+			if value == "" {
+				continue
+			}
 			switch f.Kind() {
 			case reflect.String:
 				f.SetString(value)
@@ -65,7 +68,11 @@ func Process(prefix string, spec interface{}) error {
 			case reflect.Float32:
 				floatValue, err := strconv.ParseFloat(value, f.Type().Bits())
 				if err != nil {
-					return err
+					return &ParseError{
+						FieldName: fieldName,
+						TypeName:  f.Kind().String(),
+						Value:     value,
+					}
 				}
 				f.SetFloat(floatValue)
 			}
