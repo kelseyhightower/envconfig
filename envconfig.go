@@ -5,12 +5,16 @@
 package envconfig
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 )
+
+// ErrInvalidSpecification indicates that a specification is of the wrong type.
+var ErrInvalidSpecification = errors.New("invalid specification must be a struct")
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -20,12 +24,6 @@ type ParseError struct {
 	Value     string
 }
 
-type InvalidSpecificationError struct{}
-
-func (e *InvalidSpecificationError) Error() string {
-	return "envconfig.Process: invalid specification type must be a struct"
-}
-
 func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning to %s: converting '%s' to an %s", e.FieldName, e.Value, e.TypeName)
 }
@@ -33,7 +31,7 @@ func (e *ParseError) Error() string {
 func Process(prefix string, spec interface{}) error {
 	s := reflect.ValueOf(spec).Elem()
 	if s.Kind() != reflect.Struct {
-		return &InvalidSpecificationError{}
+		return ErrInvalidSpecification
 	}
 	typeOfSpec := s.Type()
 	for i := 0; i < s.NumField(); i++ {

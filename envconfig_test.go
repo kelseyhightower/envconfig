@@ -92,10 +92,10 @@ func TestParseErrorInt(t *testing.T) {
 	}
 }
 
-func TestInvalidSpecificationError(t *testing.T) {
+func TestErrInvalidSpecification(t *testing.T) {
 	m := make(map[string]string)
 	err := Process("env_config", &m)
-	if v, ok := err.(*InvalidSpecificationError); !ok {
-		t.Errorf("expected InvalidSpecificationError, got %v", v)
+	if err != ErrInvalidSpecification {
+		t.Errorf("expected %v, got %v", ErrInvalidSpecification, err)
 	}
 }
