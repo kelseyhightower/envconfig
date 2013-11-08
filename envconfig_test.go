@@ -1,4 +1,4 @@
-package env_config
+package envconfig
 
 import (
 	"os"

@@ -1,1 +1,5 @@
-# env-config
+# envconfig
+
+```Go
+import "github.com/kelseyhightower/envconfig"
+```
