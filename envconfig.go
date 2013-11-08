@@ -11,7 +11,7 @@ import (
 type InvalidSpecificationError struct{}
 
 func (e InvalidSpecificationError) Error() string {
-	return "env_config: invalid specification type must be a struct"
+	return "envconfig: invalid specification type must be a struct"
 }
 
 func Process(prefix string, spec interface{}) error {
@@ -34,6 +34,12 @@ func Process(prefix string, spec interface{}) error {
 					return nil
 				}
 				f.SetInt(intValue)
+			case reflect.Bool:
+				boolValue, err := strconv.ParseBool(value)
+				if err != nil {
+					return nil
+				}
+				f.SetBool(boolValue)
 			}
 		}
 	}
