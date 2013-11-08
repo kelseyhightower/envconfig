@@ -40,6 +40,12 @@ func Process(prefix string, spec interface{}) error {
 					return nil
 				}
 				f.SetBool(boolValue)
+			case reflect.Float32:
+				floatValue, err := strconv.ParseFloat(value, f.Type().Bits())
+				if err != nil {
+					return nil
+				}
+				f.SetFloat(floatValue)
 			}
 		}
 	}
