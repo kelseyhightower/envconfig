@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+// A ParseError occurs when an environment variable cannot be converted to
+// the type required by a struct field during assignment.
 type ParseError struct {
 	FieldName string
 	TypeName  string
@@ -20,11 +22,11 @@ type ParseError struct {
 
 type InvalidSpecificationError struct{}
 
-func (e InvalidSpecificationError) Error() string {
+func (e *InvalidSpecificationError) Error() string {
 	return "envconfig.Process: invalid specification type must be a struct"
 }
 
-func (e ParseError) Error() string {
+func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning to %s: converting '%s' to an %s", e.FieldName, e.Value, e.TypeName)
 }
 
