@@ -52,7 +52,7 @@ func Process(prefix string, spec interface{}) error {
 				if err != nil {
 					return &ParseError{
 						KeyName:   key,
-						FieldName: s.Type().String() + "." + fieldName,
+						FieldName: fieldName,
 						TypeName:  f.Type().String(),
 						Value:     value,
 					}
@@ -63,7 +63,7 @@ func Process(prefix string, spec interface{}) error {
 				if err != nil {
 					return &ParseError{
 						KeyName:   key,
-						FieldName: s.Type().String() + "." + fieldName,
+						FieldName: fieldName,
 						TypeName:  f.Type().String(),
 						Value:     value,
 					}
@@ -74,7 +74,7 @@ func Process(prefix string, spec interface{}) error {
 				if err != nil {
 					return &ParseError{
 						KeyName:   key,
-						FieldName: s.Type().String() + "." + fieldName,
+						FieldName: fieldName,
 						TypeName:  f.Type().String(),
 						Value:     value,
 					}
