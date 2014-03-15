@@ -19,13 +19,14 @@ var ErrInvalidSpecification = errors.New("invalid specification must be a struct
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
 type ParseError struct {
+	KeyName   string
 	FieldName string
 	TypeName  string
 	Value     string
 }
 
 func (e *ParseError) Error() string {
-	return fmt.Sprintf("envconfig.Process: assigning to %s: converting '%s' to an %s", e.FieldName, e.Value, e.TypeName)
+	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
 }
 
 func Process(prefix string, spec interface{}) error {
@@ -38,8 +39,8 @@ func Process(prefix string, spec interface{}) error {
 		f := s.Field(i)
 		if f.CanSet() {
 			fieldName := typeOfSpec.Field(i).Name
-			key := fmt.Sprintf("%s_%s", prefix, fieldName)
-			value := os.Getenv(strings.ToUpper(key))
+			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+			value := os.Getenv(key)
 			if value == "" {
 				continue
 			}
@@ -50,8 +51,9 @@ func Process(prefix string, spec interface{}) error {
 				intValue, err := strconv.ParseInt(value, 0, f.Type().Bits())
 				if err != nil {
 					return &ParseError{
+						KeyName:   key,
 						FieldName: fieldName,
-						TypeName:  f.Kind().String(),
+						TypeName:  f.Type().String(),
 						Value:     value,
 					}
 				}
@@ -60,8 +62,9 @@ func Process(prefix string, spec interface{}) error {
 				boolValue, err := strconv.ParseBool(value)
 				if err != nil {
 					return &ParseError{
+						KeyName:   key,
 						FieldName: fieldName,
-						TypeName:  f.Kind().String(),
+						TypeName:  f.Type().String(),
 						Value:     value,
 					}
 				}
@@ -70,8 +73,9 @@ func Process(prefix string, spec interface{}) error {
 				floatValue, err := strconv.ParseFloat(value, f.Type().Bits())
 				if err != nil {
 					return &ParseError{
+						KeyName:   key,
 						FieldName: fieldName,
-						TypeName:  f.Kind().String(),
+						TypeName:  f.Type().String(),
 						Value:     value,
 					}
 				}
