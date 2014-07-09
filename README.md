@@ -62,3 +62,58 @@ Port: 8080
 User: Kelsey
 Rate: 0.500000
 ```
+
+Register and use custom decoders:
+
+```Bash
+export MYAPP_KEYS=key1,key2,key3
+```
+
+```Go
+package main
+
+import (
+    "fmt"
+    "log"
+    "reflect"
+    "strings"
+
+    "github.com/kelseyhightower/envconfig"
+)
+
+type Specification struct {
+    Keys []string
+}
+
+func main() {
+    var s Specification
+    envconfig.RegisterDecoder("Keys", func(value string, fieldValue, struc reflect.Value) error {
+        items := strings.Split(value, ",")
+        n := len(items)
+
+        if fieldValue.Len() < n {
+            fieldValue.Set(reflect.MakeSlice(fieldValue.Type(), n, n))
+        }
+
+        for i, v := range items {
+            fieldValue.Index(i).SetString(v)
+        }
+
+        return nil
+    })
+    defer envconfig.ClearDecoders()
+    err := envconfig.Process("myapp", &s)
+    if err != nil {
+        log.Fatal(err.Error())
+    }
+    format := "Keys: %v"
+    _, err = fmt.Printf(format, s.Keys)
+    if err != nil {
+        log.Fatal(err.Error())
+    }
+}
+```
+
+```Bash
+Keys: [key1  key2  key3]
+```
