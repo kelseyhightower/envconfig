@@ -16,16 +16,22 @@ import (
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("invalid specification must be a struct")
 
+var CustomDecoders = make(map[string]func(envValue string, fieldValue, struc reflect.Value) error)
+
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
 type ParseError struct {
-	KeyName   string
-	FieldName string
-	TypeName  string
-	Value     string
+	KeyName    string
+	FieldName  string
+	TypeName   string
+	Value      string
+	DecoderErr error
 }
 
 func (e *ParseError) Error() string {
+	if e.DecoderErr != nil {
+		return fmt.Sprintf("envconfig.Process: processing %[1]s for %[2]s: error in custom decoder: %[3]s", e.KeyName, e.FieldName, e.DecoderErr)
+	}
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
 }
 
@@ -42,6 +48,19 @@ func Process(prefix string, spec interface{}) error {
 			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 			value := os.Getenv(key)
 			if value == "" {
+				continue
+			}
+			if decoderFunc, ok := CustomDecoders[fieldName]; ok {
+				err := decoderFunc(value, f, s)
+				if err != nil {
+					return &ParseError{
+						KeyName:    key,
+						FieldName:  fieldName,
+						TypeName:   f.Type().String(),
+						Value:      value,
+						DecoderErr: err,
+					}
+				}
 				continue
 			}
 			switch f.Kind() {
@@ -85,3 +104,15 @@ func Process(prefix string, spec interface{}) error {
 	}
 	return nil
 }
+
+// Register a custom decoder function for a particular field. This function will be executed
+// when a field by the same name is encountered.
+func RegisterDecoder(fieldName string, f func(envValue string, fieldValue, struc reflect.Value) error) {
+	CustomDecoders[fieldName] = f
+}
+
+// Clear all custom decoders
+func ClearDecoders() {
+	CustomDecoders = make(map[string]func(string, reflect.Value, reflect.Value) error)
+}
+
