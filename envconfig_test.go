@@ -10,10 +10,13 @@ import (
 )
 
 type Specification struct {
-	Debug bool
-	Port  int
-	Rate  float32
-	User  string
+	Debug                        bool
+	Port                         int
+	Rate                         float32
+	User                         string
+	MultiWordVar                 string
+	MultiWordVarWithAlt          string `alt:"MULTI_WORD_VAR_WITH_ALT"`
+	MultiWordVarWithLowerCaseAlt string `alt:"multi_word_var_with_lower_case_alt"`
 }
 
 func TestProcess(t *testing.T) {
