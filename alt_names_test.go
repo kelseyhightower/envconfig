@@ -32,3 +32,37 @@ func TestAlternateVarNames(t *testing.T) {
 		t.Errorf("expected %q, got %q", "baz", s.MultiWordVarWithLowerCaseAlt)
 	}
 }
+
+func TestAcceptSmushyName(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_ACCEPTSMUSHYNAME", "foo")
+	os.Setenv("ENV_CONFIG_MULTIWORDVARWITHALT", "bar")
+	os.Setenv("ENV_CONFIG_THIS_ONE_TOO", "baz")
+	os.Setenv("ENV_CONFIG_THISONETOO", "bogus")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	// Smushy name is accepted when `accept_smushy_name` is specified and
+	// non-smushy env var is not set
+	if s.AcceptSmushyName != "foo" {
+		t.Errorf("expected %q, got %q", "foo", s.AcceptSmushyName)
+	}
+
+	// Smushy name is not accepted on vars with an alt name specified and no
+	// `accept_smusmy_name`
+	if s.MultiWordVarWithAlt == "bar" {
+		t.Errorf("did not expect %q, got %q", "bar", s.MultiWordVarWithAlt)
+	}
+
+	// Smushy name is only used as the default and is not accepted if the alt
+	// env var is provided
+	//
+	// Also, yes this condition is logically redundant, but it helps explain
+	// the use case
+	if s.ThisOneToo != "baz" || s.ThisOneToo == "bogus" {
+		t.Errorf("expected %q, got %q", "baz", s.ThisOneToo)
+	}
+
+}
