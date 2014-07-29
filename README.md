@@ -105,7 +105,7 @@ type Specification struct {
 will now be read in as follows:
 
 ```Bash
-# export MYAPP_MULTI_WORD_VAR="if this value is not provided"
+# export MYAPP_MULTI_WORD_VAR="if this value is not provided,"
 
 export MYAPP_MULTIWORDVAR="but this one is, this one will get used"
 ```
