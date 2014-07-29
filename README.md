@@ -62,3 +62,72 @@ Port: 8080
 User: Kelsey
 Rate: 0.500000
 ```
+
+## Advanced Usage
+
+### Alternative Variable Names
+
+A specification struct may be annotated with the `alt:"<name>"` tag
+to change the name of the environmental variable `envconfig` accepts.
+
+For example,
+
+```Go
+type Specification struct {
+    MultiWordVar `alt:"multi_word_var"`
+}
+```
+
+will now be read in as follows:
+
+```Bash
+export MYAPP_MULTI_WORD_VAR="this will be the value"
+
+# export MYAPP_MULTIWORDVAR="and this will not"
+```
+
+### Backwards Compatibility
+
+If you were using `envconfig` before this feature, adding the
+`alt:"<name>"` tag would break backwards compatibility, because the
+original ("smushy" - because the word are smushed together) variable
+will be ignored.  To address this, add the `accept_smushy_name:"yes"`
+tag.
+
+For example,
+
+```Go
+type Specification struct {
+    MultiWordVar `alt:"multi_word_var" accept_smushy_name:"yes"`
+}
+```
+
+will now be read in as follows:
+
+```Bash
+# export MYAPP_MULTI_WORD_VAR="if this value is not provided"
+
+export MYAPP_MULTIWORDVAR="but this one is, this one will get used"
+```
+
+
+### Minor Gotcha
+
+It is worth noting that if *both* variables are supplied, and the struct
+member is annotated with *both* tags, **the alternate name will be
+used**.
+
+For example:
+
+```Go
+type Specification struct {
+    MultiWordVar `alt:"multi_word_var" accept_smushy_name:"yes"`
+}
+```
+
+will now be read in as follows:
+
+```Bash
+export MYAPP_MULTIWORDVAR="this value is supplied but ignored"
+export MYAPP_MULTI_WORD_VAR="this value takes precedence"
+```
