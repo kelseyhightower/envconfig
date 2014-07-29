@@ -64,5 +64,4 @@ func TestAcceptSmushyName(t *testing.T) {
 	if s.ThisOneToo != "baz" || s.ThisOneToo == "bogus" {
 		t.Errorf("expected %q, got %q", "baz", s.ThisOneToo)
 	}
-
 }

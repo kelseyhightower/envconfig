@@ -49,7 +49,6 @@ func Process(prefix string, spec interface{}) error {
 				fieldName = alt
 				key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 				value = os.Getenv(key)
-
 				if value == "" && field.Tag.Get("accept_smushy_name") == "yes" {
 					fieldName = field.Name
 					key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
