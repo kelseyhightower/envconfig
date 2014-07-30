@@ -68,7 +68,7 @@ Rate: 0.500000
 ### Alternative Variable Names
 
 A specification struct may be annotated with the `alt:"<name>"` tag
-to change the name of the environmental variable `envconfig` accepts.
+to change the name of the environment variable `envconfig` accepts.
 
 For example,
 
