@@ -38,9 +38,23 @@ func Process(prefix string, spec interface{}) error {
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		if f.CanSet() {
-			fieldName := typeOfSpec.Field(i).Name
-			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
-			value := os.Getenv(key)
+			var key, value, fieldName string
+			field := typeOfSpec.Field(i)
+			alt := field.Tag.Get("alt")
+			if alt == "" {
+				fieldName = field.Name
+				key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+				value = os.Getenv(key)
+			} else {
+				fieldName = alt
+				key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+				value = os.Getenv(key)
+				if value == "" && field.Tag.Get("accept_smushy_name") == "yes" {
+					fieldName = field.Name
+					key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+					value = os.Getenv(key)
+				}
+			}
 			if value == "" {
 				continue
 			}
