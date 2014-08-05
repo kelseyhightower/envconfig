@@ -118,12 +118,6 @@ func TestAlternateVarNames(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	// Setting the alt version of the var in the environment has no effect if
-	// the struct tag is not supplied
-	if s.MultiWordVar != "" {
-		t.Errorf("expected %q, got %q", "", s.MultiWordVar)
-	}
-
 	// Setting the alt version of the var in the environment correctly sets
 	// the value if the struct tag IS supplied
 	if s.MultiWordVarWithAlt != "bar" {
@@ -133,5 +127,15 @@ func TestAlternateVarNames(t *testing.T) {
 	// Alt value is not case sensitive and is treated as all uppercase
 	if s.MultiWordVarWithLowerCaseAlt != "baz" {
 		t.Errorf("expected %q, got %q", "baz", s.MultiWordVarWithLowerCaseAlt)
+	}
+}
+
+func TestToUnderscoreCase(t *testing.T) {
+	// In golang an exported field name is capitalized camelcase
+	input := "SampleFieldName"
+	output := toUnderscoreCase(input)
+	expectedOutput := "Sample_Field_Name"
+	if output != expectedOutput {
+		t.Errorf("expected %v, got %v", expectedOutput, output)
 	}
 }
