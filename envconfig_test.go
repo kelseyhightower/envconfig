@@ -99,3 +99,13 @@ func TestErrInvalidSpecification(t *testing.T) {
 		t.Errorf("expected %v, got %v", ErrInvalidSpecification, err)
 	}
 }
+
+func TestToUnderscoreCase(t *testing.T) {
+	// In golang an exported field name is capitalized camelcase
+	input := "SampleFieldName"
+	output := toUnderscoreCase(input)
+	expectedOutput := "Sample_Field_Name"
+	if output != expectedOutput {
+		t.Errorf("expected %v, got %v", expectedOutput, output)
+	}
+}
