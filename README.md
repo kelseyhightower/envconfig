@@ -62,3 +62,26 @@ Port: 8080
 User: Kelsey
 Rate: 0.500000
 ```
+
+## Struct Tag Support
+
+Envconfig supports the use of struct tags to specify alternate
+environment variables.
+
+For example, consider the following struct:
+
+```Go
+type Specification struct {
+    MultiWordVar `envconfig:"multi_word_var"`
+}
+```
+
+Whereas before, the value for `MultiWordVar` would have been populated
+with `MYAPP_MULTIWORDVAR`, it will now be populated with
+`MYAPP_MULTI_WORD_VAR`.
+
+```Bash
+export MYAPP_MULTI_WORD_VAR="this will be the value"
+
+# export MYAPP_MULTIWORDVAR="and this will not"
+```
