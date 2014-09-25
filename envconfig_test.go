@@ -20,6 +20,33 @@ type Specification struct {
 	NoPrefixWithAlt              string `envconfig:"SERVICE_HOST"`
 }
 
+type SpecificationWithRequiredFields struct {
+	RequiredString string `envconfig_required_field:"true"`
+	RequiredBool   bool   `envconfig_required_field:"true"`
+	NotRequired    string
+}
+
+func TestProcessRequiredFields(t *testing.T) {
+	os.Clearenv()
+
+	err := Process("env_config", &SpecificationWithRequiredFields{})
+	if !(err != nil && err.(*MissingFieldError).KeyName == "REQUIREDSTRING") {
+		t.Error("envconfig_required_field for string was not enforced")
+	}
+
+	os.Setenv("ENV_CONFIG_REQUIREDSTRING", "Set")
+	err = Process("env_config", &SpecificationWithRequiredFields{})
+	if !(err != nil && err.(*MissingFieldError).KeyName == "REQUIREDBOOL") {
+		t.Error("envconfig_required_field for bool was not enforced")
+	}
+
+	os.Setenv("ENV_CONFIG_REQUIREDBOOL", "true")
+	err = Process("env_config", &SpecificationWithRequiredFields{})
+	if err != nil {
+		t.Error("envconfig_required_field for unrequired field failed")
+	}
+}
+
 func TestProcess(t *testing.T) {
 	var s Specification
 	os.Clearenv()

@@ -101,3 +101,16 @@ export MYAPP_MULTI_WORD_VAR="this will be the value"
 
 # export MYAPP_MULTIWORDVAR="and this will not"
 ```
+
+Envconfig also supports setting a struct tag to mark a field as required.
+
+For example:
+
+```Go
+type Specification struct {
+    Hello string `envconfig_required_field:"true"`
+    Goodbye string
+}
+```
+
+In this example, envconfig.process("app", &Specification{}) will return an error unless the environment variable "APP_HELLO" has been set.
