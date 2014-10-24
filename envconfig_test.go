@@ -17,6 +17,14 @@ type Specification struct {
 	MultiWordVar                 string
 	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
 	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
+	Nested                       NestedSpecification
+	NestedWithTag                NestedSpecification `envconfig:"ANOTHER_NESTED"`
+}
+
+type NestedSpecification struct {
+	SomeValue    string
+	ValueWithTag string `envconfig:"ANOTHER_VALUE"`
+	Cool         bool
 }
 
 func TestProcess(t *testing.T) {
@@ -128,5 +136,61 @@ func TestAlternateVarNames(t *testing.T) {
 	// Alt value is not case sensitive and is treated as all uppercase
 	if s.MultiWordVarWithLowerCaseAlt != "baz" {
 		t.Errorf("expected %q, got %q", "baz", s.MultiWordVarWithLowerCaseAlt)
+	}
+}
+
+func TestNestedSpecification(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_NESTED_SOMEVALUE", "string1")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.Nested.SomeValue != "string1" {
+		t.Errorf("expected %q, got %q", "string1", s.Nested.SomeValue)
+	}
+}
+
+func TestNestedSpecificationError(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_NESTED_COOL", "string")
+	err := Process("env_config", &s)
+	v, ok := err.(*ParseError)
+	if !ok {
+		t.Errorf("expected ParseError, got %v", v)
+	}
+	if v.FieldName != "Cool" {
+		t.Errorf("expected %s, got %v", "Cool", v.FieldName)
+	}
+	if s.Nested.Cool != false {
+		t.Errorf("expected %v, got %v", false, s.Nested.Cool)
+	}
+}
+
+func TestNestedSpecificationWithTag(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_ANOTHER_NESTED_SOMEVALUE", "string2")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.NestedWithTag.SomeValue != "string2" {
+		t.Errorf("expected %q, got %q", "string2", s.NestedWithTag.SomeValue)
+	}
+}
+
+func TestNestedSpecificationWithTagOnProperty(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_NESTED_ANOTHER_VALUE", "string3")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.Nested.ValueWithTag != "string3" {
+		t.Errorf("expected %q, got %q", "string3", s.Nested.ValueWithTag)
 	}
 }

@@ -47,7 +47,7 @@ func Process(prefix string, spec interface{}) error {
 			}
 			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 			value := os.Getenv(key)
-			if value == "" {
+			if value == "" && f.Kind() != reflect.Struct {
 				continue
 			}
 			switch f.Kind() {
@@ -86,6 +86,12 @@ func Process(prefix string, spec interface{}) error {
 					}
 				}
 				f.SetFloat(floatValue)
+			case reflect.Struct:
+				structPtr := reflect.New(f.Type()).Interface()
+				if err := Process(key, structPtr); err != nil {
+					return err
+				}
+				f.Set(reflect.ValueOf(structPtr).Elem())
 			}
 		}
 	}
