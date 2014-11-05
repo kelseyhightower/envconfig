@@ -47,10 +47,10 @@ func TestProcess(t *testing.T) {
 func TestProcessNoPrefix(t *testing.T) {
 	var s Specification
 	os.Clearenv()
-	os.Setenv("Debug", "true")
-	os.Setenv("Port", "8080")
-	os.Setenv("Rate", "0.5")
-	os.Setenv("User", "Kelsey")
+	os.Setenv("DEBUG", "true")
+	os.Setenv("PORT", "8080")
+	os.Setenv("RATE", "0.5")
+	os.Setenv("USER", "Kelsey")
 	err := Process("", &s)
 	if err != nil {
 		t.Error(err.Error())
