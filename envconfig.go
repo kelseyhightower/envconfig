@@ -45,7 +45,12 @@ func Process(prefix string, spec interface{}) error {
 			} else {
 				fieldName = typeOfSpec.Field(i).Name
 			}
-			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+			var key string
+			if prefix == "" {
+				key = fieldName
+			} else {
+				key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+			}
 			value := os.Getenv(key)
 			if value == "" {
 				continue
