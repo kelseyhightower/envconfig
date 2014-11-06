@@ -85,3 +85,40 @@ export MYAPP_MULTI_WORD_VAR="this will be the value"
 
 # export MYAPP_MULTIWORDVAR="and this will not"
 ```
+
+## Nested structs
+
+```Go
+type Specification struct {
+    Nested Nested
+}
+
+type Nested struct {
+    Value string
+}
+```
+
+Specification.Nested.Value will be populated if envconfig finds a variable
+named `MYAPP_NESTED_VALUE`. Be careful with values set before `Process()` because
+the nested struct will be overwritten with a new instance of its type.
+
+## Maps and Slices
+
+```Go
+type Specification struct {
+    Slice []string
+    Map   map[string]string    
+}
+```
+
+```Bash
+export MYAPP_SLICE="foo,bar,baz"
+export MYAPP_MAP="a:1,b:2,c:3"
+```
+```Go
+Specification.Slice == []string{"foo", "bar", "baz"}
+Specification.Map == map[string]string{"a": "1", "b": "2", "c": "3"}
+```
+
+* Currently, only string-related maps and slices are supported
+
