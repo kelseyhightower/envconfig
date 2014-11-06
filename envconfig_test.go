@@ -6,6 +6,7 @@ package envconfig
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -19,6 +20,8 @@ type Specification struct {
 	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
 	Nested                       NestedSpecification
 	NestedWithTag                NestedSpecification `envconfig:"ANOTHER_NESTED"`
+	Slice                        []string
+	Map                          map[string]string
 }
 
 type NestedSpecification struct {
@@ -192,5 +195,43 @@ func TestNestedSpecificationWithTagOnProperty(t *testing.T) {
 
 	if s.Nested.ValueWithTag != "string3" {
 		t.Errorf("expected %q, got %q", "string3", s.Nested.ValueWithTag)
+	}
+}
+
+func TestSlice(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_SLICE", "a,b,c")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	expected := []string{"a", "b", "c"}
+	if !reflect.DeepEqual(s.Slice, expected) {
+		t.Errorf("expected %q, got %q", expected, s.Slice)
+	}
+}
+
+func TestMap(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_MAP", "a:1,b:2,c:3")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	expected := map[string]string{"a": "1", "b": "2", "c": "3"}
+	if !reflect.DeepEqual(s.Map, expected) {
+		t.Errorf("expected %q, got %q", expected, s.Map)
+	}
+}
+
+func TestInvalidKVForMap(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_MAP", "a")
+	err := Process("env_config", &s)
+	if v, ok := err.(*ParseError); !ok {
+		t.Errorf("expected ParseError, got %v", v)
 	}
 }
