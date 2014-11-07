@@ -11,6 +11,14 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/MendelGusmao/smart"
+)
+
+const (
+	escape        = "\\"
+	listDelimiter = ","
+	pairDelimiter = ":"
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
@@ -47,7 +55,10 @@ func Process(prefix string, spec interface{}) error {
 			}
 			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 			value := os.Getenv(key)
-			if value == "" {
+			if value == "" &&
+				f.Kind() != reflect.Struct &&
+				f.Kind() != reflect.Slice &&
+				f.Kind() != reflect.Map {
 				continue
 			}
 			switch f.Kind() {
@@ -86,6 +97,29 @@ func Process(prefix string, spec interface{}) error {
 					}
 				}
 				f.SetFloat(floatValue)
+			case reflect.Struct:
+				structPtr := reflect.New(f.Type()).Interface()
+				if err := Process(key, structPtr); err != nil {
+					return err
+				}
+				f.Set(reflect.ValueOf(structPtr).Elem())
+			case reflect.Slice:
+				f.Set(reflect.ValueOf(smart.Split(value, listDelimiter, escape)))
+			case reflect.Map:
+				v := make(map[string]string)
+				for _, pair := range smart.Split(value, listDelimiter, escape) {
+					kv := smart.Split(pair, pairDelimiter, escape)
+					if len(kv) != 2 {
+						return &ParseError{
+							KeyName:   key,
+							FieldName: fieldName,
+							TypeName:  f.Type().String(),
+							Value:     fmt.Sprintf("%v", kv),
+						}
+					}
+					v[kv[0]] = kv[1]
+				}
+				f.Set(reflect.ValueOf(v))
 			}
 		}
 	}
