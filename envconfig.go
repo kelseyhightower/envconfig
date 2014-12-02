@@ -1,6 +1,6 @@
 // Copyright (c) 2013 Kelsey Hightower. All rights reserved.
-// Use of this source code is governed by the Apache License, Version 2.0
-// that can be found in the LICENSE file.
+// Use of this source code is governed by the MIT License that can be found in
+// the LICENSE file.
 
 package envconfig
 
@@ -44,7 +44,13 @@ func Process(prefix string, spec interface{}) error {
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		if f.CanSet() {
-			fieldName := typeOfSpec.Field(i).Name
+			var fieldName string
+			alt := typeOfSpec.Field(i).Tag.Get("envconfig")
+			if alt != "" {
+				fieldName = alt
+			} else {
+				fieldName = typeOfSpec.Field(i).Name
+			}
 			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 			value := os.Getenv(key)
 			if value == "" {

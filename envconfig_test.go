@@ -1,6 +1,6 @@
 // Copyright (c) 2013 Kelsey Hightower. All rights reserved.
-// Use of this source code is governed by the Apache License, Version 2.0
-// that can be found in the LICENSE file.
+// Use of this source code is governed by the MIT License that can be found in
+// the LICENSE file.
 
 package envconfig
 
@@ -18,6 +18,9 @@ type Specification struct {
 	Rate  float32
 	User  string
 	Keys  []string
+	MultiWordVar                 string
+	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
+	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
 }
 
 func TestProcess(t *testing.T) {
@@ -163,5 +166,33 @@ func TestCustomDecoderError(t *testing.T) {
 	err := Process("env_config", &s)
 	if err.Error() != "envconfig.Process: processing ENV_CONFIG_KEYS for Keys: error in custom decoder: !" {
 		t.Errorf("unexpected error: %s", err)
+	}
+}
+
+func TestAlternateVarNames(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR", "foo")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT", "bar")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_LOWER_CASE_ALT", "baz")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	// Setting the alt version of the var in the environment has no effect if
+	// the struct tag is not supplied
+	if s.MultiWordVar != "" {
+		t.Errorf("expected %q, got %q", "", s.MultiWordVar)
+	}
+
+	// Setting the alt version of the var in the environment correctly sets
+	// the value if the struct tag IS supplied
+	if s.MultiWordVarWithAlt != "bar" {
+		t.Errorf("expected %q, got %q", "bar", s.MultiWordVarWithAlt)
+	}
+
+	// Alt value is not case sensitive and is treated as all uppercase
+	if s.MultiWordVarWithLowerCaseAlt != "baz" {
+		t.Errorf("expected %q, got %q", "baz", s.MultiWordVarWithLowerCaseAlt)
 	}
 }
