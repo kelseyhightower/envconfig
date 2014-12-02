@@ -30,9 +30,9 @@ type ParseError struct {
 
 func (e *ParseError) Error() string {
 	if e.DecoderErr != nil {
-		return fmt.Sprintf("envconfig.Process: processing %[1]s for %[2]s: error in custom decoder: %[3]s", e.KeyName, e.FieldName, e.DecoderErr)
+		return fmt.Sprintf("envconfig.Process: processing %s for %s: error in custom decoder: %s", e.KeyName, e.FieldName, e.DecoderErr)
 	}
-	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
+	return fmt.Sprintf("envconfig.Process: assigning %s to %s: converting '%s' to type %s", e.KeyName, e.FieldName, e.Value, e.TypeName)
 }
 
 func Process(prefix string, spec interface{}) error {
