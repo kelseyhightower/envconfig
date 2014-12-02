@@ -5,19 +5,19 @@
 package envconfig
 
 import (
+	"errors"
 	"os"
-	"testing"
 	"reflect"
 	"strings"
-	"errors"
+	"testing"
 )
 
 type Specification struct {
-	Debug bool
-	Port  int
-	Rate  float32
-	User  string
-	Keys  []string
+	Debug                        bool
+	Port                         int
+	Rate                         float32
+	User                         string
+	Keys                         []string
 	MultiWordVar                 string
 	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
 	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
@@ -108,7 +108,7 @@ func TestErrInvalidSpecification(t *testing.T) {
 }
 
 func TestCustomDecoder(t *testing.T) {
-    var s Specification
+	var s Specification
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_DEBUG", "true")
 	os.Setenv("ENV_CONFIG_PORT", "8080")

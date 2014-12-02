@@ -121,4 +121,3 @@ func RegisterDecoder(fieldName string, f func(envValue string, fieldValue, struc
 func ClearDecoders() {
 	CustomDecoders = make(map[string]func(string, reflect.Value, reflect.Value) error)
 }
-
