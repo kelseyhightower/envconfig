@@ -49,6 +49,31 @@ func TestProcess(t *testing.T) {
 	}
 }
 
+func TestProcessNoPrefix(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("DEBUG", "true")
+	os.Setenv("PORT", "8080")
+	os.Setenv("RATE", "0.5")
+	os.Setenv("USER", "Kelsey")
+	err := Process("", &s)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	if !s.Debug {
+		t.Errorf("expected %v, got %v", true, s.Debug)
+	}
+	if s.Port != 8080 {
+		t.Errorf("expected %d, got %v", 8080, s.Port)
+	}
+	if s.Rate != 0.5 {
+		t.Errorf("expected %f, got %v", 0.5, s.Rate)
+	}
+	if s.User != "Kelsey" {
+		t.Errorf("expected %s, got %s", "Kelsey", s.User)
+	}
+}
+
 func TestParseErrorBool(t *testing.T) {
 	var s Specification
 	os.Clearenv()
