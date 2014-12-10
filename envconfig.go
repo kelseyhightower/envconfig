@@ -29,6 +29,14 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
 }
 
+type MissingFieldError struct {
+	KeyName string
+}
+
+func (e *MissingFieldError) Error() string {
+	return fmt.Sprintf("envconfig.Process Required field:'%[1]s' not set", e.KeyName)
+}
+
 func Process(prefix string, spec interface{}) error {
 	s := reflect.ValueOf(spec).Elem()
 	if s.Kind() != reflect.Struct {
@@ -45,13 +53,18 @@ func Process(prefix string, spec interface{}) error {
 			} else {
 				fieldName = typeOfSpec.Field(i).Name
 			}
+			is_field_required := typeOfSpec.Field(i).Tag.Get("envconfig_required_field") != ""
 			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 			value := os.Getenv(key)
 			if value == "" {
 				key := strings.ToUpper(fieldName)
 				value = os.Getenv(key)
 				if value == "" {
-					continue
+					if is_field_required {
+						return &MissingFieldError{KeyName: key}
+					} else {
+						continue
+					}
 				}
 			}
 			switch f.Kind() {
