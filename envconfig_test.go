@@ -17,6 +17,7 @@ type Specification struct {
 	MultiWordVar                 string
 	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
 	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
+	NoPrefixWithAlt              string `envconfig:"SERVICE_HOST"`
 }
 
 func TestProcess(t *testing.T) {
@@ -26,9 +27,13 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_PORT", "8080")
 	os.Setenv("ENV_CONFIG_RATE", "0.5")
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
+	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
+	}
+	if s.NoPrefixWithAlt != "127.0.0.1" {
+		t.Errorf("expected %v, got %v", "127.0.0.1", s.NoPrefixWithAlt)
 	}
 	if !s.Debug {
 		t.Errorf("expected %v, got %v", true, s.Debug)

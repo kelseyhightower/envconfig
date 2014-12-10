@@ -80,6 +80,22 @@ Whereas before, the value for `MultiWordVar` would have been populated
 with `MYAPP_MULTIWORDVAR`, it will now be populated with
 `MYAPP_MULTI_WORD_VAR`.
 
+If envconfig can't find an environment variable in the form PREFIX_MYVAR, and there
+is a struct tag defined, it will try to populate your variable with an environment
+variable that directly matches the envconfig tag in your struct definition:
+
+```shell
+export SERVICE_HOST=127.0.0.1
+export MYAPP_DEGUB=true
+```
+```Go
+type Specification struct {
+	ServiceHost	`envconfig:"SERVICE_HOST"`
+	Debug bool
+}
+```
+
+
 ```Bash
 export MYAPP_MULTI_WORD_VAR="this will be the value"
 
