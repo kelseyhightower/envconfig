@@ -39,21 +39,24 @@ func Process(prefix string, spec interface{}) error {
 		f := s.Field(i)
 		if f.CanSet() {
 			var fieldName string
+			var hasTag bool
 			alt := typeOfSpec.Field(i).Tag.Get("envconfig")
 			if alt != "" {
 				fieldName = alt
+				hasTag = true
 			} else {
 				fieldName = typeOfSpec.Field(i).Name
 			}
 			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 			value := os.Getenv(key)
-			if value == "" {
+			if value == "" && hasTag {
 				key := strings.ToUpper(fieldName)
 				value = os.Getenv(key)
-				if value == "" {
-					continue
-				}
 			}
+			if value == "" {
+				continue
+			}
+
 			switch f.Kind() {
 			case reflect.String:
 				f.SetString(value)
