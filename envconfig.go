@@ -79,7 +79,7 @@ func Process(prefix string, spec interface{}) error {
 					}
 				}
 				f.SetBool(boolValue)
-			case reflect.Float32:
+			case reflect.Float32, reflect.Float64:
 				floatValue, err := strconv.ParseFloat(value, f.Type().Bits())
 				if err != nil {
 					return &ParseError{
