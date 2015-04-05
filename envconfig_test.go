@@ -108,6 +108,21 @@ func TestErrInvalidSpecification(t *testing.T) {
 	}
 }
 
+func TestUnsetVars(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("USER", "foo")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	// If the var is not defined the non-prefixed version should not be used
+	// unless the struct tag says so
+	if s.User != "" {
+		t.Errorf("expected %q, got %q", "", s.User)
+	}
+}
+
 func TestAlternateVarNames(t *testing.T) {
 	var s Specification
 	os.Clearenv()
