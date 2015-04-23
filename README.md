@@ -86,7 +86,7 @@ variable that directly matches the envconfig tag in your struct definition:
 
 ```shell
 export SERVICE_HOST=127.0.0.1
-export MYAPP_DEGUB=true
+export MYAPP_DEBUG=true
 ```
 ```Go
 type Specification struct {
