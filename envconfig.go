@@ -5,12 +5,14 @@
 package envconfig
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
@@ -45,9 +47,15 @@ func Process(prefix string, spec interface{}) error {
 				fieldName = alt
 				hasTag = true
 			} else {
-				fieldName = typeOfSpec.Field(i).Name
+				fieldName = toUnderscoreCase(typeOfSpec.Field(i).Name)
 			}
-			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+			var key string
+			if len(prefix) == 0 {
+				key = strings.ToUpper(fieldName)
+			} else {
+				key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+			}
+
 			value := os.Getenv(key)
 			if value == "" && hasTag {
 				key := strings.ToUpper(fieldName)
@@ -97,4 +105,15 @@ func Process(prefix string, spec interface{}) error {
 		}
 	}
 	return nil
+}
+
+func toUnderscoreCase(str string) string {
+	buf := new(bytes.Buffer)
+	for i, r := range str {
+		if unicode.IsUpper(r) && i != 0 {
+			buf.WriteRune('_')
+		}
+		buf.WriteRune(r)
+	}
+	return string(buf.Bytes())
 }

@@ -20,6 +20,11 @@ type Specification struct {
 	NoPrefixWithAlt              string `envconfig:"SERVICE_HOST"`
 }
 
+type Specification2 struct {
+	DebugLevel string
+	ServerPort int
+}
+
 func TestProcess(t *testing.T) {
 	var s Specification
 	os.Clearenv()
@@ -34,6 +39,46 @@ func TestProcess(t *testing.T) {
 	}
 	if s.NoPrefixWithAlt != "127.0.0.1" {
 		t.Errorf("expected %v, got %v", "127.0.0.1", s.NoPrefixWithAlt)
+	}
+	if !s.Debug {
+		t.Errorf("expected %v, got %v", true, s.Debug)
+	}
+	if s.Port != 8080 {
+		t.Errorf("expected %d, got %v", 8080, s.Port)
+	}
+	if s.Rate != 0.5 {
+		t.Errorf("expected %f, got %v", 0.5, s.Rate)
+	}
+	if s.User != "Kelsey" {
+		t.Errorf("expected %s, got %s", "Kelsey", s.User)
+	}
+
+	var s2 Specification2
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEBUG_LEVEL", "info")
+	os.Setenv("ENV_CONFIG_SERVER_PORT", "3000")
+	err = Process("env_config", &s2)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	if s2.DebugLevel != "info" {
+		t.Errorf("expected %s, got %s", "info", s2.DebugLevel)
+	}
+	if s2.ServerPort != 3000 {
+		t.Errorf("expected %d, got %d", 3000, s2.ServerPort)
+	}
+}
+
+func testProcessWithoutPrefix(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("DEBUG", "true")
+	os.Setenv("PORT", "8080")
+	os.Setenv("RATE", "0.5")
+	os.Setenv("USER", "Kelsey")
+	err := Process("", &s)
+	if err != nil {
+		t.Error(err.Error())
 	}
 	if !s.Debug {
 		t.Errorf("expected %v, got %v", true, s.Debug)
@@ -133,12 +178,6 @@ func TestAlternateVarNames(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	// Setting the alt version of the var in the environment has no effect if
-	// the struct tag is not supplied
-	if s.MultiWordVar != "" {
-		t.Errorf("expected %q, got %q", "", s.MultiWordVar)
-	}
-
 	// Setting the alt version of the var in the environment correctly sets
 	// the value if the struct tag IS supplied
 	if s.MultiWordVarWithAlt != "bar" {
@@ -148,5 +187,15 @@ func TestAlternateVarNames(t *testing.T) {
 	// Alt value is not case sensitive and is treated as all uppercase
 	if s.MultiWordVarWithLowerCaseAlt != "baz" {
 		t.Errorf("expected %q, got %q", "baz", s.MultiWordVarWithLowerCaseAlt)
+	}
+}
+
+func TestToUnderscoreCase(t *testing.T) {
+	// In golang an exported field name is capitalized camelcase
+	input := "SampleFieldName"
+	output := toUnderscoreCase(input)
+	expectedOutput := "Sample_Field_Name"
+	if output != expectedOutput {
+		t.Errorf("expected %v, got %v", expectedOutput, output)
 	}
 }
