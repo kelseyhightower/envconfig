@@ -81,17 +81,21 @@ type Specification struct {
 Envconfig will process value for `MultiWordVar` by populating it with the
 value for `MYAPP_MULTI_WORD_VAR`.
 
-If envconfig can't find an environment variable value for PREFIX_DEFAULTVAR,
+```Bash
+export MYAPP_MULTI_WORD_VAR="this will be the value"
+
+# export MYAPP_MULTIWORDVAR="and this will not"
+```
+
+If envconfig can't find an environment variable value for `MYAPP_DEFAULTVAR`,
 it will populate it with "foobar" as a default value.
 
-If envconfig can't find an environment variable value for PREFIX_REQUIREDVAR,
+If envconfig can't find an environment variable value for `MYAPP_REQUIREDVAR`,
 it will return an when asked to process the struct.
 
-
-If envconfig can't find an environment variable in the form PREFIX_MYVAR, and there
+If envconfig can't find an environment variable in the form `PREFIX_MYVAR`, and there
 is a struct tag defined, it will try to populate your variable with an environment
 variable that directly matches the envconfig tag in your struct definition:
-
 
 ```shell
 export SERVICE_HOST=127.0.0.1
@@ -102,11 +106,4 @@ type Specification struct {
 	ServiceHost	`envconfig:"SERVICE_HOST"`
 	Debug bool
 }
-```
-
-
-```Bash
-export MYAPP_MULTI_WORD_VAR="this will be the value"
-
-# export MYAPP_MULTIWORDVAR="and this will not"
 ```
