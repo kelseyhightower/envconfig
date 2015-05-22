@@ -15,6 +15,7 @@ import (
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("invalid specification must be a struct")
+var ErrRequiredKey = errors.New("required key missing value")
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -38,21 +39,28 @@ func Process(prefix string, spec interface{}) error {
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		if f.CanSet() {
-			var fieldName string
-			var hasTag bool
 			alt := typeOfSpec.Field(i).Tag.Get("envconfig")
+			fieldName := typeOfSpec.Field(i).Name
 			if alt != "" {
 				fieldName = alt
-				hasTag = true
-			} else {
-				fieldName = typeOfSpec.Field(i).Name
 			}
 			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 			value := os.Getenv(key)
-			if value == "" && hasTag {
+			if value == "" && alt != "" {
 				key := strings.ToUpper(fieldName)
 				value = os.Getenv(key)
 			}
+
+			def := typeOfSpec.Field(i).Tag.Get("default")
+			if def != "" && value == "" {
+				value = def
+			}
+
+			req := typeOfSpec.Field(i).Tag.Get("required")
+			if req == "true" && value == "" {
+				return ErrRequiredKey
+			}
+
 			if value == "" {
 				continue
 			}
