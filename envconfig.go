@@ -57,11 +57,10 @@ func Process(prefix string, spec interface{}) error {
 			}
 
 			req := typeOfSpec.Field(i).Tag.Get("required")
-			if req == "true" && value == "" {
-				return ErrRequiredKey
-			}
-
 			if value == "" {
+				if req == "true" {
+					return ErrRequiredKey
+				}
 				continue
 			}
 
