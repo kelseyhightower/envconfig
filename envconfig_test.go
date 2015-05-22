@@ -18,6 +18,7 @@ type Specification struct {
 	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
 	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
 	NoPrefixWithAlt              string `envconfig:"SERVICE_HOST"`
+	DefaultVar                   string `default:"foobar"`
 	RequiredVar                  string `required:"true"`
 }
 
@@ -171,5 +172,32 @@ func TestRequiredVar(t *testing.T) {
 
 	if s.RequiredVar != "foobar" {
 		t.Errorf("expected %s, got %s", "foobar", s.RequiredVar)
+	}
+}
+
+func TestBlankDefaultVar(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "requiredvalue")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.DefaultVar != "foobar" {
+		t.Errorf("expected %s, got %s", "foobar", s.DefaultVar)
+	}
+}
+
+func TestNonBlankDefaultVar(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEFAULTVAR", "nondefaultval")
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "requiredvalue")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.DefaultVar != "nondefaultval" {
+		t.Errorf("expected %s, got %s", "nondefaultval", s.DefaultVar)
 	}
 }
