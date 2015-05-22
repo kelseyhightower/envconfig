@@ -65,7 +65,7 @@ Rate: 0.500000
 
 ## Struct Tag Support
 
-Envconfig supports the use of struct tags to specify alternate
+Envconfig supports the use of struct tags to specify alternate, default, and required
 environment variables.
 
 For example, consider the following struct:
@@ -73,16 +73,25 @@ For example, consider the following struct:
 ```Go
 type Specification struct {
     MultiWordVar `envconfig:"multi_word_var"`
+    DefaultVar `default:"foobar"`
+    RequiredVar `required:"true"`
 }
 ```
 
-Whereas before, the value for `MultiWordVar` would have been populated
-with `MYAPP_MULTIWORDVAR`, it will now be populated with
-`MYAPP_MULTI_WORD_VAR`.
+Envconfig will process value for `MultiWordVar` by populating it with the
+value for `MYAPP_MULTI_WORD_VAR`.
+
+If envconfig can't find an environment variable value for PREFIX_DEFAULTVAR,
+it will populate it with "foobar" as a default value.
+
+If envconfig can't find an environment variable value for PREFIX_REQUIREDVAR,
+it will return an when asked to process the struct.
+
 
 If envconfig can't find an environment variable in the form PREFIX_MYVAR, and there
 is a struct tag defined, it will try to populate your variable with an environment
 variable that directly matches the envconfig tag in your struct definition:
+
 
 ```shell
 export SERVICE_HOST=127.0.0.1
