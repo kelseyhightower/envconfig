@@ -72,7 +72,7 @@ For example, consider the following struct:
 
 ```Go
 type Specification struct {
-    MultiWordVar `envconfig:"multi_word_var"`
+    MultiWordVar string `envconfig:"multi_word_var"`
 }
 ```
 
@@ -90,7 +90,7 @@ export MYAPP_DEBUG=true
 ```
 ```Go
 type Specification struct {
-	ServiceHost	`envconfig:"SERVICE_HOST"`
+	ServiceHost	string `envconfig:"SERVICE_HOST"`
 	Debug bool
 }
 ```
