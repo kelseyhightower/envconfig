@@ -39,6 +39,14 @@ func Process(prefix string, spec interface{}) error {
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		if f.CanSet() {
+			if typeOfSpec.Field(i).Anonymous && f.Kind() == reflect.Struct {
+				embeddedPtr := reflect.New(f.Type()).Interface()
+				if err := Process(prefix, embeddedPtr); err != nil {
+					return err
+				}
+				f.Set(reflect.ValueOf(embeddedPtr).Elem())
+			}
+
 			alt := typeOfSpec.Field(i).Tag.Get("envconfig")
 			fieldName := typeOfSpec.Field(i).Name
 			if alt != "" {

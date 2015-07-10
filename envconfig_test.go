@@ -10,6 +10,7 @@ import (
 )
 
 type Specification struct {
+	Embedded
 	Debug                        bool
 	Port                         int
 	Rate                         float32
@@ -22,6 +23,14 @@ type Specification struct {
 	RequiredVar                  string `required:"true"`
 	NoPrefixDefault              string `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string `required:"true" default:"foo2bar"`
+}
+
+type Embedded struct {
+	Enabled             bool
+	EmbeddedPort        int
+	MultiWordVar        string
+	MultiWordVarWithAlt string `envconfig:"MULTI_WITH_DIFFERENT_ALT"`
+	EmbeddedAlt         string `envconfig:"EMBEDDED_WITH_ALT"`
 }
 
 func TestProcess(t *testing.T) {
@@ -238,5 +247,41 @@ func TestRequiredDefault(t *testing.T) {
 
 	if s.RequiredDefault != "foo2bar" {
 		t.Errorf("expected %q, got %q", "foo2bar", s.RequiredDefault)
+	}
+}
+
+func TestEmbeddedStruct(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	os.Setenv("ENV_CONFIG_ENABLED", "true")
+	os.Setenv("ENV_CONFIG_EMBEDDEDPORT", "1234")
+	os.Setenv("ENV_CONFIG_MULTIWORDVAR", "foo")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT", "bar")
+	os.Setenv("ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT", "baz")
+	os.Setenv("ENV_CONFIG_EMBEDDED_WITH_ALT", "foobar")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if !s.Enabled {
+		t.Errorf("expected %v, got %v", true, s.Enabled)
+	}
+	if s.EmbeddedPort != 1234 {
+		t.Errorf("expected %d, got %v", 1234, s.EmbeddedPort)
+	}
+	if s.MultiWordVar != "foo" {
+		t.Errorf("expected %s, got %s", "foo", s.MultiWordVar)
+	}
+	if s.Embedded.MultiWordVar != "foo" {
+		t.Errorf("expected %s, got %s", "foo", s.Embedded.MultiWordVar)
+	}
+	if s.MultiWordVarWithAlt != "bar" {
+		t.Errorf("expected %s, got %s", "bar", s.MultiWordVarWithAlt)
+	}
+	if s.Embedded.MultiWordVarWithAlt != "baz" {
+		t.Errorf("expected %s, got %s", "baz", s.Embedded.MultiWordVarWithAlt)
+	}
+	if s.EmbeddedAlt != "foobar" {
+		t.Errorf("expected %s, got %s", "foobar", s.EmbeddedAlt)
 	}
 }
