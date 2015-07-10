@@ -107,3 +107,14 @@ type Specification struct {
 	Debug bool
 }
 ```
+
+## Supported Struct Field Types
+
+envconfig supports supports these struct field types:
+
+  * string
+  * int8, int16, int32, int64
+  * bool
+  * float32, float64
+
+Embedded structs using these fields are also supported.
