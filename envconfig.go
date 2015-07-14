@@ -105,3 +105,9 @@ func Process(prefix string, spec interface{}) error {
 	}
 	return nil
 }
+
+func MustProcess(prefix string, spec interface{}) {
+	if err := Process(prefix, spec); err != nil {
+		panic(err)
+	}
+}
