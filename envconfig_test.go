@@ -7,6 +7,7 @@ package envconfig
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 type Specification struct {
@@ -15,6 +16,7 @@ type Specification struct {
 	Rate                         float32
 	User                         string
 	Ttl                          uint32
+	Timeout                      time.Duration
 	MultiWordVar                 string
 	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
 	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
@@ -32,6 +34,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_PORT", "8080")
 	os.Setenv("ENV_CONFIG_RATE", "0.5")
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
+	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
@@ -56,6 +59,9 @@ func TestProcess(t *testing.T) {
 	}
 	if s.User != "Kelsey" {
 		t.Errorf("expected %s, got %s", "Kelsey", s.User)
+	}
+	if s.Timeout != 2*time.Minute {
+		t.Errorf("expected %s, got %s", 2*time.Minute, s.Timeout)
 	}
 	if s.RequiredVar != "foo" {
 		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
