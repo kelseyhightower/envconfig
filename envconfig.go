@@ -15,7 +15,6 @@ import (
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("invalid specification must be a struct")
-var ErrRequiredKey = errors.New("required key missing value")
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -67,7 +66,7 @@ func Process(prefix string, spec interface{}) error {
 			req := typeOfSpec.Field(i).Tag.Get("required")
 			if value == "" {
 				if req == "true" {
-					return ErrRequiredKey
+					return fmt.Errorf("required key %s missing value", key)
 				}
 				continue
 			}
@@ -112,4 +111,10 @@ func Process(prefix string, spec interface{}) error {
 		}
 	}
 	return nil
+}
+
+func MustProcess(prefix string, spec interface{}) {
+	if err := Process(prefix, spec); err != nil {
+		panic(err)
+	}
 }

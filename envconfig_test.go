@@ -250,6 +250,29 @@ func TestRequiredDefault(t *testing.T) {
 	}
 }
 
+func TestMustProcess(t *testing.T) {
+
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEBUG", "true")
+	os.Setenv("ENV_CONFIG_PORT", "8080")
+	os.Setenv("ENV_CONFIG_RATE", "0.5")
+	os.Setenv("ENV_CONFIG_USER", "Kelsey")
+	os.Setenv("SERVICE_HOST", "127.0.0.1")
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	MustProcess("env_config", &s)
+
+	defer func() {
+		if err := recover(); err != nil {
+			return
+		}
+
+		t.Error("expected panic")
+	}()
+	m := make(map[string]string)
+	MustProcess("env_config", &m)
+}
+
 func TestEmbeddedStruct(t *testing.T) {
 	var s Specification
 	os.Clearenv()
