@@ -37,13 +37,20 @@ func Process(prefix string, spec interface{}) error {
 	typeOfSpec := s.Type()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		if f.CanSet() {
+
+		if f.Kind() == reflect.Struct {
+			// Recursively handle nested structs
+			if err := Process(prefix, f.Addr().Interface()); err != nil {
+				return err
+			}
+		} else if f.CanSet() {
 			alt := typeOfSpec.Field(i).Tag.Get("envconfig")
 			fieldName := typeOfSpec.Field(i).Name
 			if alt != "" {
 				fieldName = alt
 			}
 			key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+
 			value := os.Getenv(key)
 			if value == "" && alt != "" {
 				key := strings.ToUpper(fieldName)
@@ -100,6 +107,7 @@ func Process(prefix string, spec interface{}) error {
 				}
 				f.SetFloat(floatValue)
 			}
+
 		}
 	}
 	return nil
