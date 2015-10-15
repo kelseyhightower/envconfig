@@ -9,6 +9,10 @@ import (
 	"testing"
 )
 
+type SubSpecification struct {
+	SubVar string
+}
+
 type Specification struct {
 	Debug                        bool
 	Port                         int
@@ -22,6 +26,8 @@ type Specification struct {
 	RequiredVar                  string `required:"true"`
 	NoPrefixDefault              string `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string `required:"true" default:"foo2bar"`
+
+	SubSpecification
 }
 
 func TestProcess(t *testing.T) {
@@ -33,6 +39,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_SUBVAR", "sub")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -54,6 +61,9 @@ func TestProcess(t *testing.T) {
 	}
 	if s.RequiredVar != "foo" {
 		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
+	}
+	if s.SubSpecification.SubVar != "sub" {
+		t.Errorf("expected %s, got %s", "sub", s.SubSpecification.SubVar)
 	}
 }
 
