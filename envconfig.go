@@ -39,7 +39,7 @@ func Process(prefix string, spec interface{}) error {
 		f := s.Field(i)
 		if f.CanSet() {
 			if typeOfSpec.Field(i).Anonymous && f.Kind() == reflect.Struct {
-				embeddedPtr := reflect.New(f.Type()).Interface()
+				embeddedPtr := f.Addr().Interface()
 				if err := Process(prefix, embeddedPtr); err != nil {
 					return err
 				}
