@@ -17,6 +17,8 @@ type Specification struct {
 	User                         string
 	Ttl                          uint32
 	Timeout                      time.Duration
+	AdminUsers                   []string
+	MagicNumbers                 []int
 	MultiWordVar                 string
 	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
 	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
@@ -35,6 +37,8 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_RATE", "0.5")
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
+	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
+	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
@@ -65,6 +69,18 @@ func TestProcess(t *testing.T) {
 	}
 	if s.RequiredVar != "foo" {
 		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
+	}
+	if len(s.AdminUsers) != 3 ||
+		s.AdminUsers[0] != "John" ||
+		s.AdminUsers[1] != "Adam" ||
+		s.AdminUsers[2] != "Will" {
+		t.Errorf("expected %s, got %s", []string{"John", "Adam", "Will"}, s.AdminUsers)
+	}
+	if len(s.MagicNumbers) != 3 ||
+		s.MagicNumbers[0] != 5 ||
+		s.MagicNumbers[1] != 10 ||
+		s.MagicNumbers[2] != 20 {
+		t.Errorf("expected %d, got %d", []int{5, 10, 20}, s.MagicNumbers)
 	}
 }
 
