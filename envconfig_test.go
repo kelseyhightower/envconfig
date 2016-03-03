@@ -14,6 +14,7 @@ type Specification struct {
 	Port                         int
 	Rate                         float32
 	User                         string
+	Ttl                          uint32
 	MultiWordVar                 string
 	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
 	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
@@ -32,6 +33,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_RATE", "0.5")
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
+	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
 	err := Process("env_config", &s)
 	if err != nil {
@@ -48,6 +50,9 @@ func TestProcess(t *testing.T) {
 	}
 	if s.Rate != 0.5 {
 		t.Errorf("expected %f, got %v", 0.5, s.Rate)
+	}
+	if s.Ttl != 30 {
+		t.Errorf("expected %d, got %v", 30, s.Ttl)
 	}
 	if s.User != "Kelsey" {
 		t.Errorf("expected %s, got %s", "Kelsey", s.User)
@@ -108,6 +113,23 @@ func TestParseErrorInt(t *testing.T) {
 	}
 	if s.Port != 0 {
 		t.Errorf("expected %v, got %v", 0, s.Port)
+	}
+}
+
+func TestParseErrorUint(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_TTL", "-30")
+	err := Process("env_config", &s)
+	v, ok := err.(*ParseError)
+	if !ok {
+		t.Errorf("expected ParseError, got %v", v)
+	}
+	if v.FieldName != "Ttl" {
+		t.Errorf("expected %s, got %v", "Ttl", v.FieldName)
+	}
+	if s.Ttl != 0 {
+		t.Errorf("expected %v, got %v", 0, s.Ttl)
 	}
 }
 

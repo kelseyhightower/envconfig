@@ -77,6 +77,17 @@ func Process(prefix string, spec interface{}) error {
 					}
 				}
 				f.SetInt(intValue)
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				uintValue, err := strconv.ParseUint(value, 0, f.Type().Bits())
+				if err != nil {
+					return &ParseError{
+						KeyName:   key,
+						FieldName: fieldName,
+						TypeName:  f.Type().String(),
+						Value:     value,
+					}
+				}
+				f.SetUint(uintValue)
 			case reflect.Bool:
 				boolValue, err := strconv.ParseBool(value)
 				if err != nil {
