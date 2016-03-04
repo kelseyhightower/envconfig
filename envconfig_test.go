@@ -74,13 +74,13 @@ func TestProcess(t *testing.T) {
 		s.AdminUsers[0] != "John" ||
 		s.AdminUsers[1] != "Adam" ||
 		s.AdminUsers[2] != "Will" {
-		t.Errorf("expected %s, got %s", []string{"John", "Adam", "Will"}, s.AdminUsers)
+		t.Errorf("expected %#v, got %#v", []string{"John", "Adam", "Will"}, s.AdminUsers)
 	}
 	if len(s.MagicNumbers) != 3 ||
 		s.MagicNumbers[0] != 5 ||
 		s.MagicNumbers[1] != 10 ||
 		s.MagicNumbers[2] != 20 {
-		t.Errorf("expected %d, got %d", []int{5, 10, 20}, s.MagicNumbers)
+		t.Errorf("expected %#v, got %#v", []int{5, 10, 20}, s.MagicNumbers)
 	}
 }
 
