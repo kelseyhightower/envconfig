@@ -15,7 +15,7 @@ import (
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
-var ErrInvalidSpecification = errors.New("invalid specification must be a struct")
+var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -32,7 +32,12 @@ func (e *ParseError) Error() string {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
-	s := reflect.ValueOf(spec).Elem()
+	s := reflect.ValueOf(spec)
+
+	if s.Kind() != reflect.Ptr {
+		return ErrInvalidSpecification
+	}
+	s = s.Elem()
 	if s.Kind() != reflect.Struct {
 		return ErrInvalidSpecification
 	}
