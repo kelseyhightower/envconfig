@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
@@ -67,7 +68,17 @@ func Process(prefix string, spec interface{}) error {
 			case reflect.String:
 				f.SetString(value)
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				intValue, err := strconv.ParseInt(value, 0, f.Type().Bits())
+				var (
+					intValue int64
+					err      error
+				)
+				if f.Kind() == reflect.Int64 && f.Type().PkgPath() == "time" && f.Type().Name() == "Duration" {
+					var d time.Duration
+					d, err = time.ParseDuration(value)
+					intValue = int64(d)
+				} else {
+					intValue, err = strconv.ParseInt(value, 0, f.Type().Bits())
+				}
 				if err != nil {
 					return &ParseError{
 						KeyName:   key,

@@ -19,6 +19,7 @@ export MYAPP_DEBUG=false
 export MYAPP_PORT=8080
 export MYAPP_USER=Kelsey
 export MYAPP_RATE="0.5"
+export MYAPP_TIMEOUT="3m"
 ```
 
 Write some code:
@@ -29,15 +30,17 @@ package main
 import (
     "fmt"
     "log"
+    "time"
 
     "github.com/kelseyhightower/envconfig"
 )
 
 type Specification struct {
-    Debug bool
-    Port  int
-    User  string
-    Rate  float32
+    Debug   bool
+    Port    int
+    User    string
+    Rate    float32
+    Timeout time.Duration
 }
 
 func main() {
@@ -46,7 +49,7 @@ func main() {
     if err != nil {
         log.Fatal(err.Error())
     }
-    format := "Debug: %v\nPort: %d\nUser: %s\nRate: %f\n"
+    format := "Debug: %v\nPort: %d\nUser: %s\nRate: %f\nTimeout: %s\n"
     _, err = fmt.Printf(format, s.Debug, s.Port, s.User, s.Rate)
     if err != nil {
         log.Fatal(err.Error())
@@ -61,6 +64,7 @@ Debug: false
 Port: 8080
 User: Kelsey
 Rate: 0.500000
+Timeout: 3m0s
 ```
 
 ## Struct Tag Support
