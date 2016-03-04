@@ -20,6 +20,7 @@ export MYAPP_PORT=8080
 export MYAPP_USER=Kelsey
 export MYAPP_RATE="0.5"
 export MYAPP_TIMEOUT="3m"
+export MYAPP_USERS="rob,ken,robert"
 ```
 
 Write some code:
@@ -39,6 +40,7 @@ type Specification struct {
     Debug   bool
     Port    int
     User    string
+    Users   []string
     Rate    float32
     Timeout time.Duration
 }
@@ -54,6 +56,11 @@ func main() {
     if err != nil {
         log.Fatal(err.Error())
     }
+
+    fmt.Println("Users:")
+    for _, u := range s.Users {
+        fmt.Printf("  %s\n", u)
+    }
 }
 ```
 
@@ -65,6 +72,10 @@ Port: 8080
 User: Kelsey
 Rate: 0.500000
 Timeout: 3m0s
+Users:
+  rob
+  ken
+  robert
 ```
 
 ## Struct Tag Support
@@ -107,7 +118,7 @@ export MYAPP_DEBUG=true
 ```
 ```Go
 type Specification struct {
-	ServiceHost string `envconfig:"SERVICE_HOST"`
-	Debug       bool
+    ServiceHost string `envconfig:"SERVICE_HOST"`
+    Debug       bool
 }
 ```
