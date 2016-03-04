@@ -30,6 +30,7 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
 }
 
+// Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
 	s := reflect.ValueOf(spec).Elem()
 	if s.Kind() != reflect.Struct {
@@ -88,6 +89,7 @@ func Process(prefix string, spec interface{}) error {
 	return nil
 }
 
+// MustProcess is the same as Process but panics if an error occurs
 func MustProcess(prefix string, spec interface{}) {
 	if err := Process(prefix, spec); err != nil {
 		panic(err)

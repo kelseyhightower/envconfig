@@ -15,7 +15,7 @@ type Specification struct {
 	Port                         int
 	Rate                         float32
 	User                         string
-	Ttl                          uint32
+	TTL                          uint32
 	Timeout                      time.Duration
 	AdminUsers                   []string
 	MagicNumbers                 []int
@@ -58,8 +58,8 @@ func TestProcess(t *testing.T) {
 	if s.Rate != 0.5 {
 		t.Errorf("expected %f, got %v", 0.5, s.Rate)
 	}
-	if s.Ttl != 30 {
-		t.Errorf("expected %d, got %v", 30, s.Ttl)
+	if s.TTL != 30 {
+		t.Errorf("expected %d, got %v", 30, s.TTL)
 	}
 	if s.User != "Kelsey" {
 		t.Errorf("expected %s, got %s", "Kelsey", s.User)
@@ -147,11 +147,11 @@ func TestParseErrorUint(t *testing.T) {
 	if !ok {
 		t.Errorf("expected ParseError, got %v", v)
 	}
-	if v.FieldName != "Ttl" {
-		t.Errorf("expected %s, got %v", "Ttl", v.FieldName)
+	if v.FieldName != "TTL" {
+		t.Errorf("expected %s, got %v", "TTL", v.FieldName)
 	}
-	if s.Ttl != 0 {
-		t.Errorf("expected %v, got %v", 0, s.Ttl)
+	if s.TTL != 0 {
+		t.Errorf("expected %v, got %v", 0, s.TTL)
 	}
 }
 
