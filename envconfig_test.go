@@ -236,7 +236,7 @@ func TestExplicitBlankDefaultVar(t *testing.T) {
 	var s Specification
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_DEFAULTVAR", "")
-	os.Setenv("ENV_CONFIG_REQUIREDVAR", "requiredvalue")
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "")
 
 	if err := Process("env_config", &s); err != nil {
 		t.Error(err.Error())
