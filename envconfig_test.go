@@ -485,6 +485,24 @@ func TestCustomDecoderWithPointer(t *testing.T) {
 	}
 }
 
+func TestEmptyPrefixUsesFieldNames(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("REQUIREDVAR", "foo")
+
+	err := Process("", &s)
+	if err != nil {
+		t.Errorf("Process failed: %s", err)
+	}
+
+	if s.RequiredVar != "foo" {
+		t.Errorf(
+			`RequiredVar not populated correctly: expected "foo", got %q`,
+			s.RequiredVar,
+		)
+	}
+}
+
 type bracketed string
 
 func (b *bracketed) Decode(value string) error {
