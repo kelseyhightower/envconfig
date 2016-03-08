@@ -133,3 +133,25 @@ envconfig supports supports these struct field types:
   * float32, float64
 
 Embedded structs using these fields are also supported.
+
+## Custom Decoders
+
+Any field whose type (or pointer-to-type) implements `envconfig.Decoder` can
+control its own deserialization:
+
+```Bash
+export DNS_SERVER=8.8.8.8
+```
+
+```Go
+type IPDecoder net.IP
+
+func (ipd *IPDecoder) Decode(value string) error {
+    *ipd = IPDecoder(net.ParseIP(value))
+    return nil
+}
+
+type DNSConfig struct {
+    Address IPDecoder `envconfig:"DNS_SERVER"`
+}
+```
