@@ -310,7 +310,6 @@ func TestRequiredDefault(t *testing.T) {
 }
 
 func TestMustProcess(t *testing.T) {
-
 	var s Specification
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_DEBUG", "true")
@@ -365,5 +364,16 @@ func TestEmbeddedStruct(t *testing.T) {
 	}
 	if s.EmbeddedAlt != "foobar" {
 		t.Errorf("expected %s, got %s", "foobar", s.EmbeddedAlt)
+	}
+}
+
+func TestNonPointerFailsProperly(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "snap")
+
+	err := Process("env_config", s)
+	if err != ErrInvalidSpecification {
+		t.Errorf("non-pointer should fail with ErrInvalidSpecification, was instead %s", err)
 	}
 }
