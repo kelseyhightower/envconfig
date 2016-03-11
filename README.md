@@ -106,7 +106,7 @@ If envconfig can't find an environment variable value for `MYAPP_DEFAULTVAR`,
 it will populate it with "foobar" as a default value.
 
 If envconfig can't find an environment variable value for `MYAPP_REQUIREDVAR`,
-it will return an when asked to process the struct.
+it will return an error when asked to process the struct.
 
 If envconfig can't find an environment variable in the form `PREFIX_MYVAR`, and there
 is a struct tag defined, it will try to populate your variable with an environment
