@@ -44,7 +44,7 @@ func Process(prefix string, spec interface{}) error {
 	typeOfSpec := s.Type()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		if !f.CanSet() {
+		if !f.CanSet() || typeOfSpec.Field(i).Tag.Get("ignored") == "true" {
 			continue
 		}
 

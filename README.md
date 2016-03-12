@@ -90,6 +90,7 @@ type Specification struct {
     MultiWordVar string `envconfig:"multi_word_var"`
     DefaultVar   string `default:"foobar"`
     RequiredVar  string `required:"true"`
+    IgnoredVar   string `ignored:"true"`
 }
 ```
 
@@ -122,6 +123,9 @@ type Specification struct {
     Debug       bool
 }
 ```
+
+Envconfig won't process a field with the "ignored" tag set to "true", even if a corresponding
+environment variable is set.
 
 ## Supported Struct Field Types
 
