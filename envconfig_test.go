@@ -12,6 +12,7 @@ import (
 
 type Specification struct {
 	Embedded
+	EmbeddedButIgnored           `ignored:"true"`
 	Debug                        bool
 	Port                         int
 	Rate                         float32
@@ -28,6 +29,7 @@ type Specification struct {
 	RequiredVar                  string `required:"true"`
 	NoPrefixDefault              string `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string `required:"true" default:"foo2bar"`
+	Ignored                      string `ignored:"true"`
 }
 
 type Embedded struct {
@@ -36,6 +38,12 @@ type Embedded struct {
 	MultiWordVar        string
 	MultiWordVarWithAlt string `envconfig:"MULTI_WITH_DIFFERENT_ALT"`
 	EmbeddedAlt         string `envconfig:"EMBEDDED_WITH_ALT"`
+	EmbeddedIgnored     string `ignored:"true"`
+}
+
+type EmbeddedButIgnored struct {
+	FirstEmbeddedButIgnored  string
+	SecondEmbeddedButIgnored string
 }
 
 func TestProcess(t *testing.T) {
@@ -51,6 +59,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -90,6 +99,9 @@ func TestProcess(t *testing.T) {
 		s.MagicNumbers[1] != 10 ||
 		s.MagicNumbers[2] != 20 {
 		t.Errorf("expected %#v, got %#v", []int{5, 10, 20}, s.MagicNumbers)
+	}
+	if s.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.Ignored)
 	}
 }
 
@@ -341,6 +353,7 @@ func TestEmbeddedStruct(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT", "bar")
 	os.Setenv("ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT", "baz")
 	os.Setenv("ENV_CONFIG_EMBEDDED_WITH_ALT", "foobar")
+	os.Setenv("ENV_CONFIG_EMBEDDED_IGNORED", "was-not-ignored")
 	if err := Process("env_config", &s); err != nil {
 		t.Error(err.Error())
 	}
@@ -364,6 +377,26 @@ func TestEmbeddedStruct(t *testing.T) {
 	}
 	if s.EmbeddedAlt != "foobar" {
 		t.Errorf("expected %s, got %s", "foobar", s.EmbeddedAlt)
+	}
+	if s.EmbeddedIgnored != "" {
+		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+}
+
+func TestEmbeddedButIgnoredStruct(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	os.Setenv("ENV_CONFIG_FIRSTEMBEDDEDBUTIGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_SECONDEMBEDDEDBUTIGNORED", "was-not-ignored")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if s.FirstEmbeddedButIgnored != "" {
+		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+	if s.SecondEmbeddedButIgnored != "" {
+		t.Errorf("expected empty string, got %#v", s.Ignored)
 	}
 }
 
