@@ -5,6 +5,7 @@
 package envconfig
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"reflect"
@@ -146,6 +147,15 @@ func processField(value string, field reflect.Value) error {
 		}
 		field.SetFloat(val)
 	case reflect.Slice:
+		if typ.Elem().Kind() == reflect.Uint8 {
+			val, err := base64.StdEncoding.DecodeString(value)
+			if err != nil {
+				return err
+			}
+			field.SetBytes(val)
+			return nil
+		}
+
 		vals := strings.Split(value, ",")
 		sl := reflect.MakeSlice(typ, len(vals), len(vals))
 		for i, val := range vals {
