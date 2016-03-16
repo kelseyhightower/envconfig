@@ -19,6 +19,7 @@ type Specification struct {
 	User                         string
 	TTL                          uint32
 	Timeout                      time.Duration
+	Binary                       []byte
 	AdminUsers                   []string
 	MagicNumbers                 []int
 	MultiWordVar                 string
@@ -35,6 +36,7 @@ type Specification struct {
 type Embedded struct {
 	Enabled             bool
 	EmbeddedPort        int
+	EmbeddedBinary      []byte
 	MultiWordVar        string
 	MultiWordVarWithAlt string `envconfig:"MULTI_WITH_DIFFERENT_ALT"`
 	EmbeddedAlt         string `envconfig:"EMBEDDED_WITH_ALT"`
@@ -54,6 +56,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_RATE", "0.5")
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
+	os.Setenv("ENV_CONFIG_BINARY", "AQID")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
@@ -84,6 +87,9 @@ func TestProcess(t *testing.T) {
 	}
 	if s.Timeout != 2*time.Minute {
 		t.Errorf("expected %s, got %s", 2*time.Minute, s.Timeout)
+	}
+	if len(s.Binary) != 3 || s.Binary[0] != 1 || s.Binary[1] != 2 || s.Binary[2] != 3 {
+		t.Error("expected %s, got %s", []byte{1, 2, 3}, s.Binary)
 	}
 	if s.RequiredVar != "foo" {
 		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
@@ -349,6 +355,7 @@ func TestEmbeddedStruct(t *testing.T) {
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
 	os.Setenv("ENV_CONFIG_ENABLED", "true")
 	os.Setenv("ENV_CONFIG_EMBEDDEDPORT", "1234")
+	os.Setenv("ENV_CONFIG_EMBEDDEDBINARY", "AQID")
 	os.Setenv("ENV_CONFIG_MULTIWORDVAR", "foo")
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT", "bar")
 	os.Setenv("ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT", "baz")
@@ -362,6 +369,9 @@ func TestEmbeddedStruct(t *testing.T) {
 	}
 	if s.EmbeddedPort != 1234 {
 		t.Errorf("expected %d, got %v", 1234, s.EmbeddedPort)
+	}
+	if len(s.EmbeddedBinary) != 3 || s.EmbeddedBinary[0] != 1 || s.EmbeddedBinary[1] != 2 || s.EmbeddedBinary[2] != 3 {
+		t.Error("expected %s, got %s", []byte{1, 2, 3}, s.EmbeddedBinary)
 	}
 	if s.MultiWordVar != "foo" {
 		t.Errorf("expected %s, got %s", "foo", s.MultiWordVar)

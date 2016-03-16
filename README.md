@@ -135,5 +135,6 @@ envconfig supports supports these struct field types:
   * int8, int16, int32, int64
   * bool
   * float32, float64
+  * []byte (as base64-encoded string)
 
 Embedded structs using these fields are also supported.
