@@ -26,6 +26,12 @@ type ParseError struct {
 	Value     string
 }
 
+// A Decoder is a type that knows how to de-serialize environment variables
+// into itself.
+type Decoder interface {
+	Decode(value string) error
+}
+
 func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
 }
@@ -107,6 +113,11 @@ func MustProcess(prefix string, spec interface{}) {
 func processField(value string, field reflect.Value) error {
 	typ := field.Type()
 
+	decoder := decoderFrom(field)
+	if decoder != nil {
+		return decoder.Decode(value)
+	}
+
 	switch typ.Kind() {
 	case reflect.String:
 		field.SetString(value)
@@ -155,6 +166,27 @@ func processField(value string, field reflect.Value) error {
 			}
 		}
 		field.Set(sl)
+	}
+
+	return nil
+}
+
+func decoderFrom(field reflect.Value) Decoder {
+	if field.CanInterface() {
+		dec, ok := field.Interface().(Decoder)
+		if ok {
+			return dec
+		}
+	}
+
+	// also check if pointer-to-type implements Decoder,
+	// and we can get a pointer to our field
+	if field.CanAddr() {
+		field = field.Addr()
+		dec, ok := field.Interface().(Decoder)
+		if ok {
+			return dec
+		}
 	}
 
 	return nil

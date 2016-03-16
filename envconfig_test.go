@@ -410,3 +410,61 @@ func TestNonPointerFailsProperly(t *testing.T) {
 		t.Errorf("non-pointer should fail with ErrInvalidSpecification, was instead %s", err)
 	}
 }
+
+func TestCustomDecoder(t *testing.T) {
+	s := struct {
+		Foo string
+		Bar bracketed
+	}{}
+
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_FOO", "foo")
+	os.Setenv("ENV_CONFIG_BAR", "bar")
+
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.Foo != "foo" {
+		t.Errorf("foo: expected 'foo', got %q", s.Foo)
+	}
+
+	if string(s.Bar) != "[bar]" {
+		t.Errorf("bar: expected '[bar]', got %q", string(s.Bar))
+	}
+}
+
+func TestCustomDecoderWithPointer(t *testing.T) {
+	s := struct {
+		Foo string
+		Bar *bracketed
+	}{}
+
+	// Decode would panic when b is nil, so make sure it
+	// has an initial value to replace.
+	var b bracketed = "initial_value"
+	s.Bar = &b
+
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_FOO", "foo")
+	os.Setenv("ENV_CONFIG_BAR", "bar")
+
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.Foo != "foo" {
+		t.Errorf("foo: expected 'foo', got %q", s.Foo)
+	}
+
+	if string(*s.Bar) != "[bar]" {
+		t.Errorf("bar: expected '[bar]', got %q", string(*s.Bar))
+	}
+}
+
+type bracketed string
+
+func (b *bracketed) Decode(value string) error {
+	*b = bracketed("[" + value + "]")
+	return nil
+}
