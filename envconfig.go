@@ -118,6 +118,14 @@ func processField(value string, field reflect.Value) error {
 		return decoder.Decode(value)
 	}
 
+	if typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+		if field.IsNil() {
+			field.Set(reflect.New(typ))
+		}
+		field = field.Elem()
+	}
+
 	switch typ.Kind() {
 	case reflect.String:
 		field.SetString(value)
