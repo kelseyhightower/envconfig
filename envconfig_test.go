@@ -22,14 +22,16 @@ type Specification struct {
 	AdminUsers                   []string
 	MagicNumbers                 []int
 	MultiWordVar                 string
-	MultiWordVarWithAlt          string `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
-	MultiWordVarWithLowerCaseAlt string `envconfig:"multi_word_var_with_lower_case_alt"`
-	NoPrefixWithAlt              string `envconfig:"SERVICE_HOST"`
-	DefaultVar                   string `default:"foobar"`
-	RequiredVar                  string `required:"true"`
-	NoPrefixDefault              string `envconfig:"BROKER" default:"127.0.0.1"`
-	RequiredDefault              string `required:"true" default:"foo2bar"`
-	Ignored                      string `ignored:"true"`
+	SomePointer                  *string
+	SomePointerWithDefault       *string `default:"foo2baz"`
+	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
+	MultiWordVarWithLowerCaseAlt string  `envconfig:"multi_word_var_with_lower_case_alt"`
+	NoPrefixWithAlt              string  `envconfig:"SERVICE_HOST"`
+	DefaultVar                   string  `default:"foobar"`
+	RequiredVar                  string  `required:"true"`
+	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
+	RequiredDefault              string  `required:"true" default:"foo2bar"`
+	Ignored                      string  `ignored:"true"`
 }
 
 type Embedded struct {
@@ -253,6 +255,10 @@ func TestBlankDefaultVar(t *testing.T) {
 	if s.DefaultVar != "foobar" {
 		t.Errorf("expected %s, got %s", "foobar", s.DefaultVar)
 	}
+
+	if *s.SomePointerWithDefault != "foo2baz" {
+		t.Errorf("expected %s, got %s", "foo2baz", *s.SomePointerWithDefault)
+	}
 }
 
 func TestNonBlankDefaultVar(t *testing.T) {
@@ -321,6 +327,19 @@ func TestRequiredDefault(t *testing.T) {
 	}
 }
 
+func TestPointerFieldBlank(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.SomePointer != nil {
+		t.Errorf("expected <nil>, got %2", *s.SomePointer)
+	}
+}
+
 func TestMustProcess(t *testing.T) {
 	var s Specification
 	os.Clearenv()
@@ -353,6 +372,7 @@ func TestEmbeddedStruct(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT", "bar")
 	os.Setenv("ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT", "baz")
 	os.Setenv("ENV_CONFIG_EMBEDDED_WITH_ALT", "foobar")
+	os.Setenv("ENV_CONFIG_SOMEPOINTER", "foobaz")
 	os.Setenv("ENV_CONFIG_EMBEDDED_IGNORED", "was-not-ignored")
 	if err := Process("env_config", &s); err != nil {
 		t.Error(err.Error())
@@ -377,6 +397,9 @@ func TestEmbeddedStruct(t *testing.T) {
 	}
 	if s.EmbeddedAlt != "foobar" {
 		t.Errorf("expected %s, got %s", "foobar", s.EmbeddedAlt)
+	}
+	if *s.SomePointer != "foobaz" {
+		t.Errorf("expected %s, got %s", "foobaz", *s.SomePointer)
 	}
 	if s.EmbeddedIgnored != "" {
 		t.Errorf("expected empty string, got %#v", s.Ignored)
