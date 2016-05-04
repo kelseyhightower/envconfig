@@ -7,6 +7,8 @@ package envconfig
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -38,6 +40,12 @@ func (e *ParseError) Error() string {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
+	return ProcessWithUsage(prefix, spec, false)
+}
+
+// Process populates the specified struct based on environment variables or displays
+// a usage message
+func ProcessWithUsage(prefix string, spec interface{}, usage bool) error {
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -48,6 +56,15 @@ func Process(prefix string, spec interface{}) error {
 		return ErrInvalidSpecification
 	}
 	typeOfSpec := s.Type()
+
+	if usage {
+		fmt.Printf("USAGE: %s\n", path.Base(os.Args[0]))
+		fmt.Println()
+		fmt.Println("  This application is configured via the environment. The following environment")
+		fmt.Println("  variables can used specified:")
+		fmt.Println()
+	}
+
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		if !f.CanSet() || typeOfSpec.Field(i).Tag.Get("ignored") == "true" {
@@ -56,7 +73,7 @@ func Process(prefix string, spec interface{}) error {
 
 		if typeOfSpec.Field(i).Anonymous && f.Kind() == reflect.Struct {
 			embeddedPtr := f.Addr().Interface()
-			if err := Process(prefix, embeddedPtr); err != nil {
+			if err := ProcessWithUsage(prefix, embeddedPtr, usage); err != nil {
 				return err
 			}
 			f.Set(reflect.ValueOf(embeddedPtr).Elem())
@@ -67,7 +84,27 @@ func Process(prefix string, spec interface{}) error {
 		if alt != "" {
 			fieldName = alt
 		}
-		key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+
+		var key string
+		if prefix == "" {
+			key = strings.ToUpper(fieldName)
+		} else {
+			key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+		}
+
+		if usage {
+			fmt.Printf("  %s\n", key)
+			fmt.Printf("    [description] %s\n", typeOfSpec.Field(i).Tag.Get("short"))
+			fmt.Printf("    [type]        %s\n", typeOfSpec.Field(i).Type.Name())
+			fmt.Printf("    [default]     %s\n", typeOfSpec.Field(i).Tag.Get("default"))
+			isRequired := typeOfSpec.Field(i).Tag.Get("required")
+			if isRequired == "" {
+				isRequired = "false"
+			}
+			fmt.Printf("    [required]    %s\n", isRequired)
+			continue
+		}
+
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer.
@@ -103,11 +140,16 @@ func Process(prefix string, spec interface{}) error {
 	return nil
 }
 
-// MustProcess is the same as Process but panics if an error occurs
-func MustProcess(prefix string, spec interface{}) {
-	if err := Process(prefix, spec); err != nil {
+// MustProcessWithUsage is the same as Process but panics if an error occurs
+func MustProcessWithUsage(prefix string, spec interface{}, usage bool) {
+	if err := ProcessWithUsage(prefix, spec, usage); err != nil {
 		panic(err)
 	}
+}
+
+// MustProcess is the same as Process but panics if an error occurs
+func MustProcess(prefix string, spec interface{}) {
+	MustProcessWithUsage(prefix, spec, false)
 }
 
 func processField(value string, field reflect.Value) error {
