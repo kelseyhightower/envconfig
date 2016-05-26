@@ -32,6 +32,8 @@ type Specification struct {
 	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
+	Nested                       Nested
+	NestedPointer                *Nested
 }
 
 type Embedded struct {
@@ -46,6 +48,22 @@ type Embedded struct {
 type EmbeddedButIgnored struct {
 	FirstEmbeddedButIgnored  string
 	SecondEmbeddedButIgnored string
+}
+
+type Nested struct {
+	Child struct {
+		Body    string
+		Enabled bool
+		Ignored string `ignored:"true"`
+	}
+	ChildAlt struct {
+		BodyAlt    string `envconfig:"body"`
+		EnabledAlt bool   `envconfig:"enabled"`
+		Ignored    string `ignored:"true"`
+	} `envconfig:"child_alt"`
+	Body    string
+	Enabled bool
+	Ignored string `ignored:"true"`
 }
 
 func TestProcess(t *testing.T) {
@@ -420,6 +438,103 @@ func TestEmbeddedButIgnoredStruct(t *testing.T) {
 	}
 	if s.SecondEmbeddedButIgnored != "" {
 		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+}
+
+func TestEmbeddedValueStruct(t *testing.T) {
+	var s struct {
+		Timeout struct {
+			time.Duration
+		}
+	}
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_TIMEOUT", "5s")
+
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+
+	if s.Timeout.String() != "5s" {
+		t.Errorf("expected %s, got %s", "5s", s.Timeout)
+	}
+}
+
+func TestNestedStruct(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	os.Setenv("ENV_CONFIG_NESTED_BODY", "body1")
+	os.Setenv("ENV_CONFIG_NESTED_ENABLED", "true")
+	os.Setenv("ENV_CONFIG_NESTED_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_NESTED_CHILD_BODY", "body2")
+	os.Setenv("ENV_CONFIG_NESTED_CHILD_ENABLED", "true")
+	os.Setenv("ENV_CONFIG_NESTED_CHILD_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_NESTED_CHILD_ALT_BODY", "body3")
+	os.Setenv("ENV_CONFIG_NESTED_CHILD_ALT_ENABLED", "true")
+	os.Setenv("ENV_CONFIG_NESTED_CHILD_ALT_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_BODY", "body1")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_ENABLED", "true")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_CHILD_BODY", "body2")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_CHILD_ENABLED", "true")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_CHILD_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_CHILD_ALT_BODY", "body3")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_CHILD_ALT_ENABLED", "true")
+	os.Setenv("ENV_CONFIG_NESTEDPOINTER_CHILD_ALT_IGNORED", "was-not-ignored")
+
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if !s.Nested.Enabled {
+		t.Errorf("expected %v, got %v", true, s.Nested.Enabled)
+	}
+	if s.Nested.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.Nested.Ignored)
+	}
+	if s.Nested.Body != "body1" {
+		t.Errorf("expected %s, got %s", "body1", s.Nested.Body)
+	}
+	if !s.Nested.Child.Enabled {
+		t.Errorf("expected %v, got %v", true, s.Nested.Child.Enabled)
+	}
+	if s.Nested.Child.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.Nested.Child.Ignored)
+	}
+	if s.Nested.Child.Body != "body2" {
+		t.Errorf("expected %s, got %s", "body2", s.Nested.Child.Body)
+	}
+	if !s.Nested.ChildAlt.EnabledAlt {
+		t.Errorf("expected %v, got %v", true, s.Nested.ChildAlt.EnabledAlt)
+	}
+	if s.Nested.ChildAlt.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.Nested.ChildAlt.Ignored)
+	}
+	if s.Nested.ChildAlt.BodyAlt != "body3" {
+		t.Errorf("expected %s, got %s", "body3", s.Nested.ChildAlt.BodyAlt)
+	}
+	if s.NestedPointer == nil {
+		t.Fatalf("expected non-nil pointer")
+	}
+	if !s.NestedPointer.Enabled {
+		t.Errorf("expected %v, got %v", true, s.NestedPointer.Enabled)
+	}
+	if s.NestedPointer.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.NestedPointer.Ignored)
+	}
+	if s.NestedPointer.Body != "body1" {
+		t.Errorf("expected %s, got %s", "body1", s.NestedPointer.Body)
+	}
+	if !s.NestedPointer.Child.Enabled {
+		t.Errorf("expected %v, got %v", true, s.NestedPointer.Child.Enabled)
+	}
+	if s.NestedPointer.Child.Body != "body2" {
+		t.Errorf("expected %s, got %s", "body2", s.NestedPointer.Child.Body)
+	}
+	if !s.NestedPointer.ChildAlt.EnabledAlt {
+		t.Errorf("expected %v, got %v", true, s.NestedPointer.ChildAlt.EnabledAlt)
+	}
+	if s.NestedPointer.ChildAlt.BodyAlt != "body3" {
+		t.Errorf("expected %s, got %s", "body3", s.NestedPointer.ChildAlt.BodyAlt)
 	}
 }
 

@@ -47,14 +47,14 @@ func Process(prefix string, spec interface{}) error {
 	if s.Kind() != reflect.Struct {
 		return ErrInvalidSpecification
 	}
-	typeOfSpec := s.Type()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		if !f.CanSet() || typeOfSpec.Field(i).Tag.Get("ignored") == "true" {
+		fSpec := s.Type().Field(i)
+		if !f.CanSet() || fSpec.Tag.Get("ignored") == "true" {
 			continue
 		}
 
-		if typeOfSpec.Field(i).Anonymous && f.Kind() == reflect.Struct {
+		if fSpec.Anonymous && f.Kind() == reflect.Struct {
 			embeddedPtr := f.Addr().Interface()
 			if err := Process(prefix, embeddedPtr); err != nil {
 				return err
@@ -62,42 +62,8 @@ func Process(prefix string, spec interface{}) error {
 			f.Set(reflect.ValueOf(embeddedPtr).Elem())
 		}
 
-		alt := typeOfSpec.Field(i).Tag.Get("envconfig")
-		fieldName := typeOfSpec.Field(i).Name
-		if alt != "" {
-			fieldName = alt
-		}
-		key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
-		// `os.Getenv` cannot differentiate between an explicitly set empty value
-		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
-		// but it is only available in go1.5 or newer.
-		value, ok := syscall.Getenv(key)
-		if !ok && alt != "" {
-			key := strings.ToUpper(fieldName)
-			value, ok = syscall.Getenv(key)
-		}
-
-		def := typeOfSpec.Field(i).Tag.Get("default")
-		if def != "" && !ok {
-			value = def
-		}
-
-		req := typeOfSpec.Field(i).Tag.Get("required")
-		if !ok && def == "" {
-			if req == "true" {
-				return fmt.Errorf("required key %s missing value", key)
-			}
-			continue
-		}
-
-		err := processField(value, f)
-		if err != nil {
-			return &ParseError{
-				KeyName:   key,
-				FieldName: fieldName,
-				TypeName:  f.Type().String(),
-				Value:     value,
-			}
+		if err := processField(f, fSpec, prefix); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -110,13 +76,84 @@ func MustProcess(prefix string, spec interface{}) {
 	}
 }
 
-func processField(value string, field reflect.Value) error {
-	typ := field.Type()
+// processField processes a field using the given spec/prefix.
+func processField(field reflect.Value, spec reflect.StructField, prefix string) error {
+	alt := spec.Tag.Get("envconfig")
+	fieldName := spec.Name
+	if alt != "" {
+		fieldName = alt
+	}
 
-	decoder := decoderFrom(field)
-	if decoder != nil {
+	var key string
+	if spec.Anonymous && alt == "" {
+		key = strings.ToUpper(prefix)
+	} else {
+		key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+	}
+
+	switch field.Kind() {
+	case reflect.Struct:
+		return Process(key, field.Addr().Interface())
+	case reflect.Ptr:
+		fieldType := spec.Type.Elem()
+		if fieldType.Kind() != reflect.Struct {
+			break
+		}
+
+		if field.IsNil() {
+			fieldValue := reflect.New(fieldType)
+			err := Process(key, fieldValue.Interface())
+
+			if fieldValue.IsValid() {
+				field.Set(fieldValue)
+			}
+
+			return err
+		}
+
+		return Process(key, field.Interface())
+	}
+
+	// `os.Getenv` cannot differentiate between an explicitly set empty value
+	// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
+	// but it is only available in go1.5 or newer.
+	value, ok := syscall.Getenv(key)
+	if !ok && alt != "" {
+		key := strings.ToUpper(fieldName)
+		value, ok = syscall.Getenv(key)
+	}
+
+	def := spec.Tag.Get("default")
+	if def != "" && !ok {
+		value = def
+	}
+
+	req := spec.Tag.Get("required")
+	if !ok && def == "" {
+		if req == "true" {
+			return fmt.Errorf("required key %s missing value", key)
+		}
+		return nil
+	}
+
+	if err := processFieldValue(field, value); err != nil {
+		return &ParseError{
+			KeyName:   key,
+			FieldName: fieldName,
+			TypeName:  field.Type().String(),
+			Value:     value,
+		}
+	}
+	return nil
+}
+
+// processFieldValue processes a field using the given value.
+func processFieldValue(field reflect.Value, value string) error {
+	if decoder := decoderFrom(field); decoder != nil {
 		return decoder.Decode(value)
 	}
+
+	typ := field.Type()
 
 	if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
@@ -168,7 +205,7 @@ func processField(value string, field reflect.Value) error {
 		vals := strings.Split(value, ",")
 		sl := reflect.MakeSlice(typ, len(vals), len(vals))
 		for i, val := range vals {
-			err := processField(val, sl.Index(i))
+			err := processFieldValue(sl.Index(i), val)
 			if err != nil {
 				return err
 			}
