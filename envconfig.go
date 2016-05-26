@@ -83,7 +83,13 @@ func processField(field reflect.Value, spec reflect.StructField, prefix string) 
 	if alt != "" {
 		fieldName = alt
 	}
-	key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+
+	var key string
+	if spec.Anonymous && alt == "" {
+		key = strings.ToUpper(prefix)
+	} else {
+		key = strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+	}
 
 	switch field.Kind() {
 	case reflect.Struct:

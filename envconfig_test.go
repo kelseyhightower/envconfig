@@ -441,6 +441,24 @@ func TestEmbeddedButIgnoredStruct(t *testing.T) {
 	}
 }
 
+func TestEmbeddedValueStruct(t *testing.T) {
+	var s struct {
+		Timeout struct {
+			time.Duration
+		}
+	}
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_TIMEOUT", "5s")
+
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+
+	if s.Timeout.String() != "5s" {
+		t.Errorf("expected %s, got %s", "5s", s.Timeout)
+	}
+}
+
 func TestNestedStruct(t *testing.T) {
 	var s Specification
 	os.Clearenv()
