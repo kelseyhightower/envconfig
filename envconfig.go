@@ -26,10 +26,16 @@ type ParseError struct {
 	Value     string
 }
 
-// A Decoder is a type that knows how to de-serialize environment variables
-// into itself.
+// Decoder has the same semantics as Setter, but takes higher precedence.
+// It is provided for historical compatibility.
 type Decoder interface {
 	Decode(value string) error
+}
+
+// Setter is implemented by types can self-deserialize values.
+// Any type that implements flag.Value also implements Setter.
+type Setter interface {
+	Set(value string) error
 }
 
 func (e *ParseError) Error() string {
@@ -117,6 +123,11 @@ func processField(value string, field reflect.Value) error {
 	if decoder != nil {
 		return decoder.Decode(value)
 	}
+	// look for Set method if Decode not defined
+	setter := setterFrom(field)
+	if setter != nil {
+		return setter.Set(value)
+	}
 
 	if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
@@ -179,23 +190,24 @@ func processField(value string, field reflect.Value) error {
 	return nil
 }
 
-func decoderFrom(field reflect.Value) Decoder {
-	if field.CanInterface() {
-		dec, ok := field.Interface().(Decoder)
-		if ok {
-			return dec
-		}
+func interfaceFrom(field reflect.Value, fn func(interface{}, *bool)) {
+	// it may be impossible for a struct field to fail this check
+	if !field.CanInterface() {
+		return
 	}
-
-	// also check if pointer-to-type implements Decoder,
-	// and we can get a pointer to our field
-	if field.CanAddr() {
-		field = field.Addr()
-		dec, ok := field.Interface().(Decoder)
-		if ok {
-			return dec
-		}
+	var ok bool
+	fn(field.Interface(), &ok)
+	if !ok && field.CanAddr() {
+		fn(field.Addr().Interface(), &ok)
 	}
+}
 
-	return nil
+func decoderFrom(field reflect.Value) (d Decoder) {
+	interfaceFrom(field, func(v interface{}, ok *bool) { d, *ok = v.(Decoder) })
+	return d
+}
+
+func setterFrom(field reflect.Value) (s Setter) {
+	interfaceFrom(field, func(v interface{}, ok *bool) { s, *ok = v.(Setter) })
+	return s
 }
