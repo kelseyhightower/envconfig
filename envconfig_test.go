@@ -5,6 +5,7 @@
 package envconfig
 
 import (
+	"flag"
 	"os"
 	"testing"
 	"time"
@@ -468,54 +469,70 @@ func TestNonPointerFailsProperly(t *testing.T) {
 	}
 }
 
-func TestCustomDecoder(t *testing.T) {
-	s := struct {
+func TestCustomValueFields(t *testing.T) {
+	var s struct {
 		Foo string
 		Bar bracketed
-	}{}
+		Baz quoted
+	}
+
+	// Set would panic when the receiver is nil,
+	// so make sure it has an initial value to replace.
+	s.Baz = quoted{new(bracketed)}
 
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_FOO", "foo")
 	os.Setenv("ENV_CONFIG_BAR", "bar")
+	os.Setenv("ENV_CONFIG_BAZ", "baz")
 
 	if err := Process("env_config", &s); err != nil {
 		t.Error(err.Error())
 	}
 
-	if s.Foo != "foo" {
-		t.Errorf("foo: expected 'foo', got %q", s.Foo)
+	if want := "foo"; s.Foo != want {
+		t.Errorf("foo: got %#q, want %#q", s.Foo, want)
 	}
 
-	if string(s.Bar) != "[bar]" {
-		t.Errorf("bar: expected '[bar]', got %q", string(s.Bar))
+	if want := "[bar]"; s.Bar.String() != want {
+		t.Errorf("bar: got %#q, want %#q", s.Bar, want)
+	}
+
+	if want := `["baz"]`; s.Baz.String() != want {
+		t.Errorf(`baz: got %#q, want %#q`, s.Baz, want)
 	}
 }
 
-func TestCustomDecoderWithPointer(t *testing.T) {
-	s := struct {
+func TestCustomPointerFields(t *testing.T) {
+	var s struct {
 		Foo string
 		Bar *bracketed
-	}{}
+		Baz *quoted
+	}
 
-	// Decode would panic when b is nil, so make sure it
-	// has an initial value to replace.
-	var b bracketed = "initial_value"
-	s.Bar = &b
+	// Set would panic when the receiver is nil,
+	// so make sure they have initial values to replace.
+	s.Bar = new(bracketed)
+	s.Baz = &quoted{new(bracketed)}
 
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_FOO", "foo")
 	os.Setenv("ENV_CONFIG_BAR", "bar")
+	os.Setenv("ENV_CONFIG_BAZ", "baz")
 
 	if err := Process("env_config", &s); err != nil {
 		t.Error(err.Error())
 	}
 
-	if s.Foo != "foo" {
-		t.Errorf("foo: expected 'foo', got %q", s.Foo)
+	if want := "foo"; s.Foo != want {
+		t.Errorf("foo: got %#q, want %#q", s.Foo, want)
 	}
 
-	if string(*s.Bar) != "[bar]" {
-		t.Errorf("bar: expected '[bar]', got %q", string(*s.Bar))
+	if want := "[bar]"; s.Bar.String() != want {
+		t.Errorf("bar: got %#q, want %#q", s.Bar, want)
+	}
+
+	if want := `["baz"]`; s.Baz.String() != want {
+		t.Errorf(`baz: got %#q, want %#q`, s.Baz, want)
 	}
 }
 
@@ -553,7 +570,20 @@ func TestNestedStructVarName(t *testing.T) {
 
 type bracketed string
 
-func (b *bracketed) Decode(value string) error {
+func (b *bracketed) Set(value string) error {
 	*b = bracketed("[" + value + "]")
 	return nil
+}
+
+func (b bracketed) String() string {
+	return string(b)
+}
+
+// quoted is used to test the precedence of Decode over Set.
+// The sole field is a flag.Value rather than a setter to validate that
+// all flag.Value implementations are also Setter implementations.
+type quoted struct{ flag.Value }
+
+func (d quoted) Decode(value string) error {
+	return d.Set(`"` + value + `"`)
 }
