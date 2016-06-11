@@ -371,7 +371,7 @@ func TestPointerFieldBlank(t *testing.T) {
 	}
 
 	if s.SomePointer != nil {
-		t.Errorf("expected <nil>, got %2", *s.SomePointer)
+		t.Errorf("expected <nil>, got %q", *s.SomePointer)
 	}
 }
 
