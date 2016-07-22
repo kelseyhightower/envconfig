@@ -32,6 +32,9 @@ type Specification struct {
 	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
+	StructField                  StructField
+	StructFieldPtr               *StructField
+	StructFieldRecursive         *StructFieldRecursive
 }
 
 type Embedded struct {
@@ -46,6 +49,15 @@ type Embedded struct {
 type EmbeddedButIgnored struct {
 	FirstEmbeddedButIgnored  string
 	SecondEmbeddedButIgnored string
+}
+
+type StructField struct {
+	Name string
+}
+
+type StructFieldRecursive struct {
+	Name      string
+	Recursive *StructFieldRecursive
 }
 
 func TestProcess(t *testing.T) {
@@ -420,6 +432,71 @@ func TestEmbeddedButIgnoredStruct(t *testing.T) {
 	}
 	if s.SecondEmbeddedButIgnored != "" {
 		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+}
+
+func TestStructField(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	os.Setenv("ENV_CONFIG_STRUCTFIELD", "true")
+	os.Setenv("ENV_CONFIG_STRUCTFIELD_NAME", "name-set")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if s.StructField.Name != "name-set" {
+		t.Errorf("expected struct field name to be set to name-set, got %v", s.StructField.Name)
+	}
+}
+
+func TestStructFieldPtr(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	os.Setenv("ENV_CONFIG_STRUCTFIELDPTR", "true")
+	os.Setenv("ENV_CONFIG_STRUCTFIELDPTR_NAME", "name-set")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if s.StructFieldPtr == nil {
+		t.Errorf("expected struct field ptr to be non-nil")
+	}
+	if s.StructFieldPtr.Name != "name-set" {
+		t.Errorf("expected struct field ptr name to be set to name-set, got %v", s.StructFieldPtr.Name)
+	}
+}
+
+func TestStructFieldRecursive(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	os.Setenv("ENV_CONFIG_STRUCTFIELDRECURSIVE", "true")
+	os.Setenv("ENV_CONFIG_STRUCTFIELDRECURSIVE_NAME", "name-set-1")
+	os.Setenv("ENV_CONFIG_STRUCTFIELDRECURSIVE_RECURSIVE", "true")
+	os.Setenv("ENV_CONFIG_STRUCTFIELDRECURSIVE_RECURSIVE_NAME", "name-set-2")
+	os.Setenv("ENV_CONFIG_STRUCTFIELDRECURSIVE_RECURSIVE_RECURSIVE", "true")
+	os.Setenv("ENV_CONFIG_STRUCTFIELDRECURSIVE_RECURSIVE_RECURSIVE_NAME", "name-set-3")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.StructFieldRecursive == nil {
+		t.Errorf("expected struct field recursive level 1 to be non-nil")
+	}
+	if s.StructFieldRecursive.Name != "name-set-1" {
+		t.Errorf("expected struct field recursive level 1 name to be set to name-set-1, got %v", s.StructFieldRecursive.Name)
+	}
+	if s.StructFieldRecursive.Recursive == nil {
+		t.Errorf("expected struct field recursive level 2 to be non-nil")
+	}
+	if s.StructFieldRecursive.Recursive.Name != "name-set-2" {
+		t.Errorf("expected struct field recursive level 2 name to be set to name-set-2, got %v", s.StructFieldRecursive.Recursive.Name)
+	}
+	if s.StructFieldRecursive.Recursive.Recursive == nil {
+		t.Errorf("expected struct field recursive level 3 to be non-nil")
+	}
+	if s.StructFieldRecursive.Recursive.Recursive.Name != "name-set-3" {
+		t.Errorf("expected struct field recursive level 3 name to be set to name-set-3, got %v", s.StructFieldRecursive.Recursive.Recursive.Name)
 	}
 }
 

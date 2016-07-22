@@ -54,38 +54,20 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
+		if typeOfSpec.Field(i).Anonymous && f.Kind() == reflect.Struct {
+			embeddedPtr := f.Addr().Interface()
+			if err := Process(prefix, embeddedPtr); err != nil {
+				return err
+			}
+			f.Set(reflect.ValueOf(embeddedPtr).Elem())
+		}
+
 		alt := typeOfSpec.Field(i).Tag.Get("envconfig")
 		fieldName := typeOfSpec.Field(i).Name
 		if alt != "" {
 			fieldName = alt
 		}
-
 		key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
-
-		ft := typeOfSpec.Field(i).Type
-		for ft.Kind() == reflect.Ptr {
-			ft = ft.Elem()
-		}
-
-		if ft.Kind() == reflect.Struct {
-			for f.Kind() == reflect.Ptr {
-				if f.IsNil() {
-					f.Set(reflect.New(f.Type().Elem()))
-				}
-
-				f = f.Elem()
-			}
-
-			structKey := key
-			if typeOfSpec.Field(i).Anonymous {
-				structKey = prefix
-			}
-
-			if err := Process(structKey, f.Addr().Interface()); err != nil {
-				return err
-			}
-		}
-
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer.
@@ -108,7 +90,7 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
-		err := processField(value, f)
+		err := processField(key, value, f)
 		if err != nil {
 			return &ParseError{
 				KeyName:   key,
@@ -128,7 +110,7 @@ func MustProcess(prefix string, spec interface{}) {
 	}
 }
 
-func processField(value string, field reflect.Value) error {
+func processField(key, value string, field reflect.Value) error {
 	typ := field.Type()
 
 	decoder := decoderFrom(field)
@@ -136,7 +118,7 @@ func processField(value string, field reflect.Value) error {
 		return decoder.Decode(value)
 	}
 
-	if typ.Kind() == reflect.Ptr {
+	for typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 		if field.IsNil() {
 			field.Set(reflect.New(typ))
@@ -186,12 +168,20 @@ func processField(value string, field reflect.Value) error {
 		vals := strings.Split(value, ",")
 		sl := reflect.MakeSlice(typ, len(vals), len(vals))
 		for i, val := range vals {
-			err := processField(val, sl.Index(i))
+			err := processField(key, val, sl.Index(i))
 			if err != nil {
 				return err
 			}
 		}
 		field.Set(sl)
+	case reflect.Struct:
+		if value != "" {
+			embeddedPtr := field.Addr().Interface()
+			if err := Process(key, embeddedPtr); err != nil {
+				return err
+			}
+			field.Set(reflect.ValueOf(embeddedPtr).Elem())
+		}
 	}
 
 	return nil
