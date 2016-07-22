@@ -54,12 +54,13 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
-		if typeOfSpec.Field(i).Anonymous && f.Kind() == reflect.Struct {
+		if f.Kind() == reflect.Struct {
 			embeddedPtr := f.Addr().Interface()
 			if err := Process(prefix, embeddedPtr); err != nil {
 				return err
 			}
 			f.Set(reflect.ValueOf(embeddedPtr).Elem())
+			continue
 		}
 
 		alt := typeOfSpec.Field(i).Tag.Get("envconfig")

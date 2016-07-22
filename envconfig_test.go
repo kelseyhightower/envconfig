@@ -11,7 +11,8 @@ import (
 )
 
 type Specification struct {
-	Embedded
+	Embedded                     // anonymous
+	EmbeddedNamed                Embedded
 	EmbeddedButIgnored           `ignored:"true"`
 	Debug                        bool
 	Port                         int
