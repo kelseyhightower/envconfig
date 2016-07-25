@@ -32,6 +32,10 @@ type Specification struct {
 	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
+	NestedSpecification          struct {
+		Property            string `envconfig:"NESTED_PROPERTY"`
+		PropertyWithDefault string `default:"fuzzybydefault"`
+	}
 }
 
 type Embedded struct {
@@ -62,6 +66,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
 	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
+	os.Setenv("NESTED_PROPERTY", "iamnested")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -104,6 +109,14 @@ func TestProcess(t *testing.T) {
 	}
 	if s.Ignored != "" {
 		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+
+	if s.NestedSpecification.Property != "iamnested" {
+		t.Errorf("expected '%s' string, got %#v", "iamnested", s.NestedSpecification.Property)
+	}
+
+	if s.NestedSpecification.PropertyWithDefault != "fuzzybydefault" {
+		t.Errorf("expected default '%s' string, got %#v", "fuzzybydefault", s.NestedSpecification.PropertyWithDefault)
 	}
 }
 
