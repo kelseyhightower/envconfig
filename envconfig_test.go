@@ -5,13 +5,15 @@
 package envconfig
 
 import (
+	"bytes"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
 
 type Specification struct {
-	Embedded
+	Embedded                     `desc:"can we document a struct"`
 	EmbeddedButIgnored           `ignored:"true"`
 	Debug                        bool
 	Port                         int
@@ -23,8 +25,8 @@ type Specification struct {
 	MagicNumbers                 []int
 	MultiWordVar                 string
 	SomePointer                  *string
-	SomePointerWithDefault       *string `default:"foo2baz"`
-	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
+	SomePointerWithDefault       *string `default:"foo2baz" desc:"foorbar is the word"`
+	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT" desc:"what alt"`
 	MultiWordVarWithLowerCaseAlt string  `envconfig:"multi_word_var_with_lower_case_alt"`
 	NoPrefixWithAlt              string  `envconfig:"SERVICE_HOST"`
 	DefaultVar                   string  `default:"foobar"`
@@ -35,7 +37,7 @@ type Specification struct {
 }
 
 type Embedded struct {
-	Enabled             bool
+	Enabled             bool `desc:"some embedded value"`
 	EmbeddedPort        int
 	MultiWordVar        string
 	MultiWordVarWithAlt string `envconfig:"MULTI_WITH_DIFFERENT_ALT"`
@@ -46,6 +48,303 @@ type Embedded struct {
 type EmbeddedButIgnored struct {
 	FirstEmbeddedButIgnored  string
 	SecondEmbeddedButIgnored string
+}
+
+var TestDocumentDefaultResult string = `USAGE:.envconfig.test
+
+..This.application.is.configured.via.the.environment..The.following.environment
+..variables.can.used.specified:
+
+..KEY..............................................TYPE.........................DEFAULT......REQUIRED....DESCRIPTION
+..ENV_CONFIG_ENABLED...............................Boolean...................................false.......some.embedded.value
+..ENV_CONFIG_EMBEDDEDPORT..........................Integer...................................false.......
+..ENV_CONFIG_MULTIWORDVAR..........................String....................................false.......
+..ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT..............String....................................false.......
+..ENV_CONFIG_EMBEDDED_WITH_ALT.....................String....................................false.......
+..ENV_CONFIG_EMBEDDED..............................Embedded..................................false.......can.we.document.a.struct
+..ENV_CONFIG_DEBUG.................................Boolean...................................false.......
+..ENV_CONFIG_PORT..................................Integer...................................false.......
+..ENV_CONFIG_RATE..................................Float.....................................false.......
+..ENV_CONFIG_USER..................................String....................................false.......
+..ENV_CONFIG_TTL...................................Unsigned.Integer(32.bits}.................false.......
+..ENV_CONFIG_TIMEOUT...............................Integer(64.bits)..........................false.......
+..ENV_CONFIG_ADMINUSERS............................List.of.String............................false.......
+..ENV_CONFIG_MAGICNUMBERS..........................List.of.Integer...........................false.......
+..ENV_CONFIG_MULTIWORDVAR..........................String....................................false.......
+..ENV_CONFIG_SOMEPOINTER...........................String....................................false.......
+..ENV_CONFIG_SOMEPOINTERWITHDEFAULT................String.......................foo2baz......false.......foorbar.is.the.word
+..ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT...............String....................................false.......what.alt
+..ENV_CONFIG_MULTI_WORD_VAR_WITH_LOWER_CASE_ALT....String....................................false.......
+..ENV_CONFIG_SERVICE_HOST..........................String....................................false.......
+..ENV_CONFIG_DEFAULTVAR............................String.......................foobar.......false.......
+..ENV_CONFIG_REQUIREDVAR...........................String....................................true........
+..ENV_CONFIG_BROKER................................String.......................127.0.0.1....false.......
+..ENV_CONFIG_REQUIREDDEFAULT.......................String.......................foo2bar......true........
+`
+
+var TestDocumentListResult string = `..ENV_CONFIG_ENABLED
+....[description].some.embedded.value
+....[type]........Boolean
+....[default].....
+....[required]....false
+..ENV_CONFIG_EMBEDDEDPORT
+....[description].
+....[type]........Integer
+....[default].....
+....[required]....false
+..ENV_CONFIG_MULTIWORDVAR
+....[description].
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT
+....[description].
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_EMBEDDED_WITH_ALT
+....[description].
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_EMBEDDED
+....[description].can.we.document.a.struct
+....[type]........Embedded
+....[default].....
+....[required]....false
+..ENV_CONFIG_DEBUG
+....[description].
+....[type]........Boolean
+....[default].....
+....[required]....false
+..ENV_CONFIG_PORT
+....[description].
+....[type]........Integer
+....[default].....
+....[required]....false
+..ENV_CONFIG_RATE
+....[description].
+....[type]........Float
+....[default].....
+....[required]....false
+..ENV_CONFIG_USER
+....[description].
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_TTL
+....[description].
+....[type]........Unsigned.Integer(32.bits}
+....[default].....
+....[required]....false
+..ENV_CONFIG_TIMEOUT
+....[description].
+....[type]........Integer(64.bits)
+....[default].....
+....[required]....false
+..ENV_CONFIG_ADMINUSERS
+....[description].
+....[type]........List.of.String
+....[default].....
+....[required]....false
+..ENV_CONFIG_MAGICNUMBERS
+....[description].
+....[type]........List.of.Integer
+....[default].....
+....[required]....false
+..ENV_CONFIG_MULTIWORDVAR
+....[description].
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_SOMEPOINTER
+....[description].
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_SOMEPOINTERWITHDEFAULT
+....[description].foorbar.is.the.word
+....[type]........String
+....[default].....foo2baz
+....[required]....false
+..ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT
+....[description].what.alt
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_MULTI_WORD_VAR_WITH_LOWER_CASE_ALT
+....[description].
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_SERVICE_HOST
+....[description].
+....[type]........String
+....[default].....
+....[required]....false
+..ENV_CONFIG_DEFAULTVAR
+....[description].
+....[type]........String
+....[default].....foobar
+....[required]....false
+..ENV_CONFIG_REQUIREDVAR
+....[description].
+....[type]........String
+....[default].....
+....[required]....true
+..ENV_CONFIG_BROKER
+....[description].
+....[type]........String
+....[default].....127.0.0.1
+....[required]....false
+..ENV_CONFIG_REQUIREDDEFAULT
+....[description].
+....[type]........String
+....[default].....foo2bar
+....[required]....true
+`
+
+var TestDocumentCustomResult = `ENV_CONFIG_ENABLED=some.embedded.value
+ENV_CONFIG_EMBEDDEDPORT=
+ENV_CONFIG_MULTIWORDVAR=
+ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT=
+ENV_CONFIG_EMBEDDED_WITH_ALT=
+ENV_CONFIG_EMBEDDED=can.we.document.a.struct
+ENV_CONFIG_DEBUG=
+ENV_CONFIG_PORT=
+ENV_CONFIG_RATE=
+ENV_CONFIG_USER=
+ENV_CONFIG_TTL=
+ENV_CONFIG_TIMEOUT=
+ENV_CONFIG_ADMINUSERS=
+ENV_CONFIG_MAGICNUMBERS=
+ENV_CONFIG_MULTIWORDVAR=
+ENV_CONFIG_SOMEPOINTER=
+ENV_CONFIG_SOMEPOINTERWITHDEFAULT=foorbar.is.the.word
+ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT=what.alt
+ENV_CONFIG_MULTI_WORD_VAR_WITH_LOWER_CASE_ALT=
+ENV_CONFIG_SERVICE_HOST=
+ENV_CONFIG_DEFAULTVAR=
+ENV_CONFIG_REQUIREDVAR=
+ENV_CONFIG_BROKER=
+ENV_CONFIG_REQUIREDDEFAULT=
+`
+
+var TestDocumentBadFormatResult = `{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+{.Key}
+`
+
+func compareDocs(want, got string, t *testing.T) {
+	have := strings.Replace(got, " ", ".", -1)
+	if want != have {
+		shortest := len(want)
+		if len(have) < shortest {
+			shortest = len(have)
+		}
+		if len(want) != len(have) {
+			t.Errorf("expected result length of %d, found %d", len(want), len(have))
+		}
+		for i := 0; i < shortest; i++ {
+			if want[i] != have[i] {
+				t.Errorf("difference at index %d, expected '%c' (%v), found '%c' (%v)\n",
+					i, want[i], want[i], have[i], have[i])
+				break
+			}
+		}
+		t.Errorf("Complete Expected:\n'%s'\nComplete Found:\n'%s'\n", want, have)
+	}
+}
+
+func TestDocumentDefault(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	buf := new(bytes.Buffer)
+	err := Document("env_config", &s, buf)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	compareDocs(TestDocumentDefaultResult, buf.String(), t)
+}
+
+func TestDocumentWithoutHeader(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	buf := new(bytes.Buffer)
+	err := DocumentFormat("env_config", &s, buf, false, DefaultTableFormat)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	compareDocs(TestDocumentDefaultResult[136:], buf.String(), t)
+}
+
+func TestDocumentList(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	buf := new(bytes.Buffer)
+	err := DocumentFormat("env_config", &s, buf, false, DefaultListFormat)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	compareDocs(TestDocumentListResult, buf.String(), t)
+}
+
+func TestDocumentCustomFormat(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	buf := new(bytes.Buffer)
+	err := DocumentFormat("env_config", &s, buf, false, "{{.Key}}={{.Description}}")
+	if err != nil {
+		t.Error(err.Error())
+	}
+	compareDocs(TestDocumentCustomResult, buf.String(), t)
+}
+
+func TestDocumentUnknownKeyFormat(t *testing.T) {
+	var s Specification
+	unknownError := "template: envconfig:1:2: executing \"envconfig\" at <.UnknownKey>"
+	os.Clearenv()
+	buf := new(bytes.Buffer)
+	err := DocumentFormat("env_config", &s, buf, false, "{{.UnknownKey}}")
+	if err == nil {
+		t.Errorf("expected 'unknown key' error, but got no error")
+	}
+	if err.Error()[:len(unknownError)] != unknownError {
+		t.Errorf("expected '%s', but got '%s'", unknownError, err.Error())
+	}
+}
+
+func TestDocumentBadFormat(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	// If you don't use two {{}} then you get a lieteral
+	buf := new(bytes.Buffer)
+	err := DocumentFormat("env_config", &s, buf, false, "{.Key}")
+	if err != nil {
+		t.Error(err.Error())
+	}
+	compareDocs(TestDocumentBadFormatResult, buf.String(), t)
 }
 
 func TestProcess(t *testing.T) {
