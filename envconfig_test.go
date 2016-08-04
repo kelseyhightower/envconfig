@@ -323,14 +323,14 @@ func TestDocumentCustomFormat(t *testing.T) {
 
 func TestDocumentUnknownKeyFormat(t *testing.T) {
 	var s Specification
-	unknownError := "template: envconfig:1:2: executing \"envconfig\" at <.UnknownKey>: UnknownKey is not a field of struct type envconfig.DocumentInfo"
+	unknownError := "template: envconfig:1:2: executing \"envconfig\" at <.UnknownKey>"
 	os.Clearenv()
 	buf := new(bytes.Buffer)
 	err := DocumentFormat("env_config", &s, buf, false, "{{.UnknownKey}}")
 	if err == nil {
 		t.Errorf("expected 'unknown key' error, but got no error")
 	}
-	if err.Error() != unknownError {
+	if err.Error()[:len(unknownError)] != unknownError {
 		t.Errorf("expected '%s', but got '%s'", unknownError, err.Error())
 	}
 }
