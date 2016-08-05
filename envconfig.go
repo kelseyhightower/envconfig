@@ -73,7 +73,7 @@ func Process(prefix string, spec interface{}) error {
 		// but it is only available in go1.5 or newer.
 		value, ok := syscall.Getenv(key)
 		if !ok && alt != "" {
-			key := strings.ToUpper(fieldName)
+			key = strings.ToUpper(fieldName)
 			value, ok = syscall.Getenv(key)
 		}
 

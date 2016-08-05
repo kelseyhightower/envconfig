@@ -35,6 +35,7 @@ type Specification struct {
 	StructField                  StructField
 	StructFieldPtr               *StructField
 	StructFieldRecursive         *StructFieldRecursive
+	StructFieldWithAlt           *StructField `envconfig:"STRUCT_FIELD_WITH_ALT"`
 }
 
 type Embedded struct {
@@ -446,6 +447,40 @@ func TestStructField(t *testing.T) {
 	}
 	if s.StructField.Name != "name-set" {
 		t.Errorf("expected struct field name to be set to name-set, got %v", s.StructField.Name)
+	}
+}
+
+func TestStructFieldWithAlt(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	os.Setenv("ENV_CONFIG_STRUCT_FIELD_WITH_ALT", "test")
+	os.Setenv("ENV_CONFIG_STRUCT_FIELD_WITH_ALT_NAME", "name-set")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if s.StructFieldWithAlt == nil {
+		t.Errorf("expected struct field with alt ptr to be non-nil")
+	}
+	if s.StructFieldWithAlt.Name != "name-set" {
+		t.Errorf("expected struct field with alt name to be set to name-set, got %v", s.StructField.Name)
+	}
+}
+
+func TestStructFieldWithAltNoPrefix(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	os.Setenv("STRUCT_FIELD_WITH_ALT", "test")
+	os.Setenv("STRUCT_FIELD_WITH_ALT_NAME", "name-set")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if s.StructFieldWithAlt == nil {
+		t.Errorf("expected struct field with alt ptr to be non-nil")
+	}
+	if s.StructFieldWithAlt.Name != "name-set" {
+		t.Errorf("expected struct field with alt name to be set to name-set, got %v", s.StructField.Name)
 	}
 }
 
