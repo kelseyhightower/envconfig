@@ -107,7 +107,11 @@ func Visit(prefix string, spec interface{}, process ProcessFunc) error {
 		if alt != "" {
 			fieldName = alt
 		}
-		key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
+		key := fieldName
+		if prefix != "" {
+			key = fmt.Sprintf("%s_%s", prefix, key)
+		}
+		key = strings.ToUpper(key)
 		def := tof.Tag.Get("default")
 
 		tagRequired = tof.Tag.Get("required")
