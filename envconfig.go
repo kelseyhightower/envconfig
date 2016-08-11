@@ -78,7 +78,7 @@ func Process(prefix string, spec interface{}) error {
 		// but it is only available in go1.5 or newer.
 		value, ok := syscall.Getenv(key)
 		if !ok && alt != "" {
-			key := strings.ToUpper(fieldName)
+			key = strings.ToUpper(fieldName)
 			value, ok = syscall.Getenv(key)
 		}
 
@@ -95,7 +95,7 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
-		err := processField(value, f)
+		err := processField(key, value, f)
 		if err != nil {
 			return &ParseError{
 				KeyName:   key,
@@ -115,7 +115,7 @@ func MustProcess(prefix string, spec interface{}) {
 	}
 }
 
-func processField(value string, field reflect.Value) error {
+func processField(key, value string, field reflect.Value) error {
 	typ := field.Type()
 
 	decoder := decoderFrom(field)
@@ -123,7 +123,7 @@ func processField(value string, field reflect.Value) error {
 		return decoder.Decode(value)
 	}
 
-	if typ.Kind() == reflect.Ptr {
+	for typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 		if field.IsNil() {
 			field.Set(reflect.New(typ))
@@ -173,12 +173,20 @@ func processField(value string, field reflect.Value) error {
 		vals := strings.Split(value, ",")
 		sl := reflect.MakeSlice(typ, len(vals), len(vals))
 		for i, val := range vals {
-			err := processField(val, sl.Index(i))
+			err := processField(key, val, sl.Index(i))
 			if err != nil {
 				return err
 			}
 		}
 		field.Set(sl)
+	case reflect.Struct:
+		if value != "" {
+			embeddedPtr := field.Addr().Interface()
+			if err := Process(key, embeddedPtr); err != nil {
+				return err
+			}
+			field.Set(reflect.ValueOf(embeddedPtr).Elem())
+		}
 	}
 
 	return nil
