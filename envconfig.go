@@ -7,15 +7,38 @@ package envconfig
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
+	"text/tabwriter"
+	"text/template"
 	"time"
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
+
+const NoHeader = ""
+const DefaultHeaderFormat string = `USAGE: {{ . }}
+
+  This application is configured via the environment. The following environment
+  variables can used specified:
+
+`
+
+// DefaultListFormat public format that can be used to display options in a list
+const DefaultListFormat string = `  {{.Key}}
+    [description] {{.Description}}
+    [type]        {{.Type}}
+    [default]     {{.Default}}
+    [required]    {{.Required}}`
+
+// DefaultTableFormat public format that can be used to display options in a table, default format if not specified
+const DefaultTableFormat string = "table  {{.Key}}\t{{.Type}}\t{{.Default}}\t{{.Required}}\t{{.Description}}"
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -32,38 +55,55 @@ type Decoder interface {
 	Decode(value string) error
 }
 
+// ProcessFunc vistor function definition while traversing the list of options
+type ProcessFunc func(field reflect.Value, tof reflect.StructField, fieldName string, key string, alt_key string, def string, required bool) error
+
 func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
 }
 
-// Process populates the specified struct based on environment variables
-func Process(prefix string, spec interface{}) error {
+// Visit vists all the configuration options, calling the process function on each
+func Visit(prefix string, spec interface{}, process ProcessFunc) error {
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
 		return ErrInvalidSpecification
 	}
+
 	s = s.Elem()
 	if s.Kind() != reflect.Struct {
 		return ErrInvalidSpecification
 	}
+
 	typeOfSpec := s.Type()
+	var err error
+	var tagIgnored, tagRequired string
+	var ignore, req bool
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		if !f.CanSet() || typeOfSpec.Field(i).Tag.Get("ignored") == "true" {
+		tof := typeOfSpec.Field(i)
+		ignore = false
+		tagIgnored = tof.Tag.Get("ignored")
+		if tagIgnored != "" {
+			ignore, err = strconv.ParseBool(tof.Tag.Get("ignored"))
+			if err != nil {
+				return fmt.Errorf("unable to parse 'ignored' tag : %s", err)
+			}
+		}
+		if !f.CanSet() || ignore {
 			continue
 		}
 
-		if typeOfSpec.Field(i).Anonymous && f.Kind() == reflect.Struct {
+		if tof.Anonymous && f.Kind() == reflect.Struct {
 			embeddedPtr := f.Addr().Interface()
-			if err := Process(prefix, embeddedPtr); err != nil {
+			if err := Visit(prefix, embeddedPtr, process); err != nil {
 				return err
 			}
 			f.Set(reflect.ValueOf(embeddedPtr).Elem())
 		}
 
-		alt := typeOfSpec.Field(i).Tag.Get("envconfig")
-		fieldName := typeOfSpec.Field(i).Name
+		alt := tof.Tag.Get("envconfig")
+		fieldName := tof.Name
 		if alt != "" {
 			fieldName = alt
 		}
@@ -72,40 +112,192 @@ func Process(prefix string, spec interface{}) error {
 			key = fmt.Sprintf("%s_%s", prefix, key)
 		}
 		key = strings.ToUpper(key)
+		def := tof.Tag.Get("default")
 
-		// `os.Getenv` cannot differentiate between an explicitly set empty value
-		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
-		// but it is only available in go1.5 or newer.
+		tagRequired = tof.Tag.Get("required")
+		req = false
+		if tagRequired != "" {
+			req, err = strconv.ParseBool(tof.Tag.Get("required"))
+			if err != nil {
+				return fmt.Errorf("unable to parse 'required' tag : %s", err)
+			}
+		}
+
+		if err := process(f, tof, fieldName, key, alt, def, req); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DocumentInfo used to manage configuraiton option information for template output
+type DocumentInfo struct {
+	Key         string
+	Description string
+	Type        string
+	Default     string
+	Required    string
+}
+
+// toTypeDescription convert techie type information into something more human
+func toTypeDescription(t reflect.Type) string {
+	switch t.Kind() {
+	case reflect.Array, reflect.Slice:
+		return fmt.Sprintf("List of %s", toTypeDescription(t.Elem()))
+	case reflect.Ptr:
+		return toTypeDescription(t.Elem())
+	case reflect.String:
+		return "String"
+	case reflect.Bool:
+		return "Boolean"
+	case reflect.Int:
+		return "Integer"
+	case reflect.Int8:
+		return "Integer(8 bits)"
+	case reflect.Int16:
+		return "Integer(16 bits)"
+	case reflect.Int32:
+		return "Integer(32 bits}"
+	case reflect.Int64:
+		return "Integer(64 bits)"
+	case reflect.Uint:
+		return "Unsigned Integer"
+	case reflect.Uint8:
+		return "Unsigned Integer(8 bits)"
+	case reflect.Uint16:
+		return "Unsigned Integer(16 bits)"
+	case reflect.Uint32:
+		return "Unsigned Integer(32 bits}"
+	case reflect.Uint64:
+		return "Unsigned Integer(64 bits)"
+	case reflect.Float32:
+		return "Float"
+	case reflect.Float64:
+		return "Float(64 bits)"
+	}
+	return t.Name()
+}
+
+// Document write the default format of documentation for configuration options
+func Document(prefix string, spec interface{}, out io.Writer) error {
+	return DocumentFormat(prefix, spec, out, DefaultHeaderFormat, DefaultTableFormat)
+}
+
+func DocumentFormat(prefix string, spec interface{}, out io.Writer, header string, format string) error {
+	var info DocumentInfo
+
+	if header != NoHeader {
+		headerTmpl, err := template.New("envconfg_header").Parse(header)
+		if err != nil {
+			return err
+		}
+		err = headerTmpl.Execute(out, path.Base(os.Args[0]))
+		if err != nil {
+			return err
+		}
+	}
+
+	var tabs *tabwriter.Writer = nil
+	var tmpl *template.Template
+	var tmplSpec = format
+	var err error
+
+	// If format is prefixed with "table" then strip it off to get the per-line template, display the table headers,
+	// and inject a tab write filter
+	if strings.HasPrefix(format, "table") {
+		tmplSpec = strings.TrimPrefix(format, "table")
+		tmpl, err = template.New("envconfig").Parse(tmplSpec)
+		if err != nil {
+			return err
+		}
+		tabs = tabwriter.NewWriter(out, 1, 0, 4, ' ', 0)
+		out = tabs
+
+		info = DocumentInfo{
+			Key:         "KEY",
+			Description: "DESCRIPTION",
+			Type:        "TYPE",
+			Default:     "DEFAULT",
+			Required:    "REQUIRED",
+		}
+		err = tmpl.Execute(out, info)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(out)
+	} else {
+		// Not a table, so just use given filter as is
+		tmpl, err = template.New("envconfig").Parse(tmplSpec)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Visit the configuration options and output a line for each option
+	err = Visit(prefix, spec, func(field reflect.Value, tof reflect.StructField, fieldName string,
+		key string, alt_key string, def string, req bool) error {
+
+		info = DocumentInfo{
+			Key:         key,
+			Description: tof.Tag.Get("desc"),
+			Type:        toTypeDescription(tof.Type),
+			Default:     def,
+			Required:    fmt.Sprintf("%t", req),
+		}
+
+		if err := tmpl.Execute(out, info); err != nil {
+			return err
+		}
+		fmt.Fprintln(out)
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// If we injected a tab writer then we need to flush
+	if tabs != nil {
+		tabs.Flush()
+	}
+
+	return nil
+
+}
+
+// Process populates the specfied struct based on the environment variables
+func Process(prefix string, spec interface{}) error {
+	return Visit(prefix, spec, func(field reflect.Value, tof reflect.StructField, fieldName string, key string, alt_key string, def string, req bool) error {
 		value, ok := syscall.Getenv(key)
-		if !ok && alt != "" {
-			key := strings.ToUpper(fieldName)
+		if !ok && alt_key != "" {
+			key := strings.ToUpper(alt_key)
 			value, ok = syscall.Getenv(key)
 		}
 
-		def := typeOfSpec.Field(i).Tag.Get("default")
 		if def != "" && !ok {
 			value = def
 		}
 
-		req := typeOfSpec.Field(i).Tag.Get("required")
 		if !ok && def == "" {
-			if req == "true" {
+			if req {
 				return fmt.Errorf("required key %s missing value", key)
 			}
-			continue
+			return nil
 		}
 
-		err := processField(value, f)
+		err := processField(value, field)
 		if err != nil {
 			return &ParseError{
 				KeyName:   key,
 				FieldName: fieldName,
-				TypeName:  f.Type().String(),
+				TypeName:  field.Type().String(),
 				Value:     value,
 			}
 		}
-	}
-	return nil
+
+		return nil
+	})
 }
 
 // MustProcess is the same as Process but panics if an error occurs
