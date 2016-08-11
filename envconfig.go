@@ -19,25 +19,26 @@ import (
 	"time"
 )
 
-const (
-	// True is true
-	TrueString = "true"
-	// False is false
-	FalseString = "false"
-)
-
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
+const NoHeader = ""
+const DefaultHeaderFormat string = `USAGE: {{ . }}
+
+  This application is configured via the environment. The following environment
+  variables can used specified:
+
+`
+
 // DefaultListFormat public format that can be used to display options in a list
-var DefaultListFormat string = `  {{.Key}}
+const DefaultListFormat string = `  {{.Key}}
     [description] {{.Description}}
     [type]        {{.Type}}
     [default]     {{.Default}}
     [required]    {{.Required}}`
 
 // DefaultTableFormat public format that can be used to display options in a table, default format if not specified
-var DefaultTableFormat string = "table  {{.Key}}\t{{.Type}}\t{{.Default}}\t{{.Required}}\t{{.Description}}"
+const DefaultTableFormat string = "table  {{.Key}}\t{{.Type}}\t{{.Default}}\t{{.Required}}\t{{.Description}}"
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -55,7 +56,7 @@ type Decoder interface {
 }
 
 // ProcessFunc vistor function definition while traversing the list of options
-type ProcessFunc func(field reflect.Value, tof reflect.StructField, fieldName string, key string, alt_key string, def string, required string) error
+type ProcessFunc func(field reflect.Value, tof reflect.StructField, fieldName string, key string, alt_key string, def string, required bool) error
 
 func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
@@ -75,10 +76,21 @@ func Visit(prefix string, spec interface{}, process ProcessFunc) error {
 	}
 
 	typeOfSpec := s.Type()
+	var err error
+	var tagIgnored, tagRequired string
+	var ignore, req bool
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		tof := typeOfSpec.Field(i)
-		if !f.CanSet() || tof.Tag.Get("ignored") == TrueString {
+		ignore = false
+		tagIgnored = tof.Tag.Get("ignored")
+		if tagIgnored != "" {
+			ignore, err = strconv.ParseBool(tof.Tag.Get("ignored"))
+			if err != nil {
+				return fmt.Errorf("unable to parse 'ignored' tag : %s", err)
+			}
+		}
+		if !f.CanSet() || ignore {
 			continue
 		}
 
@@ -97,9 +109,14 @@ func Visit(prefix string, spec interface{}, process ProcessFunc) error {
 		}
 		key := strings.ToUpper(fmt.Sprintf("%s_%s", prefix, fieldName))
 		def := tof.Tag.Get("default")
-		req := tof.Tag.Get("required")
-		if req != TrueString {
-			req = FalseString
+
+		tagRequired = tof.Tag.Get("required")
+		req = false
+		if tagRequired != "" {
+			req, err = strconv.ParseBool(tof.Tag.Get("required"))
+			if err != nil {
+				return fmt.Errorf("unable to parse 'required' tag : %s", err)
+			}
 		}
 
 		if err := process(f, tof, fieldName, key, alt, def, req); err != nil {
@@ -159,19 +176,21 @@ func toTypeDescription(t reflect.Type) string {
 
 // Document write the default format of documentation for configuration options
 func Document(prefix string, spec interface{}, out io.Writer) error {
-	return DocumentFormat(prefix, spec, out, true, DefaultTableFormat)
+	return DocumentFormat(prefix, spec, out, DefaultHeaderFormat, DefaultTableFormat)
 }
 
-// DocumentFormat write the configration options using the given template
-func DocumentFormat(prefix string, spec interface{}, out io.Writer, showHeader bool, format string) error {
+func DocumentFormat(prefix string, spec interface{}, out io.Writer, header string, format string) error {
 	var info DocumentInfo
 
-	if showHeader {
-		fmt.Fprintf(out, "USAGE: %s\n", path.Base(os.Args[0]))
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, "  This application is configured via the environment. The following environment")
-		fmt.Fprintln(out, "  variables can used specified:")
-		fmt.Fprintln(out)
+	if header != NoHeader {
+		headerTmpl, err := template.New("envconfg_header").Parse(header)
+		if err != nil {
+			return err
+		}
+		err = headerTmpl.Execute(out, path.Base(os.Args[0]))
+		if err != nil {
+			return err
+		}
 	}
 
 	var tabs *tabwriter.Writer = nil
@@ -212,14 +231,14 @@ func DocumentFormat(prefix string, spec interface{}, out io.Writer, showHeader b
 
 	// Visit the configuration options and output a line for each option
 	err = Visit(prefix, spec, func(field reflect.Value, tof reflect.StructField, fieldName string,
-		key string, alt_key string, def string, req string) error {
+		key string, alt_key string, def string, req bool) error {
 
 		info = DocumentInfo{
 			Key:         key,
 			Description: tof.Tag.Get("desc"),
 			Type:        toTypeDescription(tof.Type),
 			Default:     def,
-			Required:    req,
+			Required:    fmt.Sprintf("%t", req),
 		}
 
 		if err := tmpl.Execute(out, info); err != nil {
@@ -245,7 +264,7 @@ func DocumentFormat(prefix string, spec interface{}, out io.Writer, showHeader b
 
 // Process populates the specfied struct based on the environment variables
 func Process(prefix string, spec interface{}) error {
-	return Visit(prefix, spec, func(field reflect.Value, tof reflect.StructField, fieldName string, key string, alt_key string, def string, req string) error {
+	return Visit(prefix, spec, func(field reflect.Value, tof reflect.StructField, fieldName string, key string, alt_key string, def string, req bool) error {
 		value, ok := syscall.Getenv(key)
 		if !ok && alt_key != "" {
 			key := strings.ToUpper(alt_key)
@@ -257,7 +276,7 @@ func Process(prefix string, spec interface{}) error {
 		}
 
 		if !ok && def == "" {
-			if req == TrueString {
+			if req {
 				return fmt.Errorf("required key %s missing value", key)
 			}
 			return nil

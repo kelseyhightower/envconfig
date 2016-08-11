@@ -292,7 +292,7 @@ func TestDocumentWithoutHeader(t *testing.T) {
 	var s Specification
 	os.Clearenv()
 	buf := new(bytes.Buffer)
-	err := DocumentFormat("env_config", &s, buf, false, DefaultTableFormat)
+	err := DocumentFormat("env_config", &s, buf, NoHeader, DefaultTableFormat)
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -303,7 +303,7 @@ func TestDocumentList(t *testing.T) {
 	var s Specification
 	os.Clearenv()
 	buf := new(bytes.Buffer)
-	err := DocumentFormat("env_config", &s, buf, false, DefaultListFormat)
+	err := DocumentFormat("env_config", &s, buf, NoHeader, DefaultListFormat)
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -314,7 +314,7 @@ func TestDocumentCustomFormat(t *testing.T) {
 	var s Specification
 	os.Clearenv()
 	buf := new(bytes.Buffer)
-	err := DocumentFormat("env_config", &s, buf, false, "{{.Key}}={{.Description}}")
+	err := DocumentFormat("env_config", &s, buf, NoHeader, "{{.Key}}={{.Description}}")
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -326,7 +326,7 @@ func TestDocumentUnknownKeyFormat(t *testing.T) {
 	unknownError := "template: envconfig:1:2: executing \"envconfig\" at <.UnknownKey>"
 	os.Clearenv()
 	buf := new(bytes.Buffer)
-	err := DocumentFormat("env_config", &s, buf, false, "{{.UnknownKey}}")
+	err := DocumentFormat("env_config", &s, buf, NoHeader, "{{.UnknownKey}}")
 	if err == nil {
 		t.Errorf("expected 'unknown key' error, but got no error")
 	}
@@ -340,7 +340,7 @@ func TestDocumentBadFormat(t *testing.T) {
 	os.Clearenv()
 	// If you don't use two {{}} then you get a lieteral
 	buf := new(bytes.Buffer)
-	err := DocumentFormat("env_config", &s, buf, false, "{.Key}")
+	err := DocumentFormat("env_config", &s, buf, NoHeader, "{.Key}")
 	if err != nil {
 		t.Error(err.Error())
 	}
