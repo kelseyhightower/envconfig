@@ -33,9 +33,9 @@ type Specification struct {
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
 	NestedSpecification          struct {
-		Property            string `envconfig:"NESTED_PROPERTY"`
+		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
-	}
+	} `envconfig:"outer"`
 }
 
 type Embedded struct {
@@ -66,7 +66,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
 	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
-	os.Setenv("NESTED_PROPERTY", "iamnested")
+	os.Setenv("ENV_CONFIG_OUTER_INNER", "iamnested")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -513,6 +513,20 @@ func TestEmptyPrefixUsesFieldNames(t *testing.T) {
 			`RequiredVar not populated correctly: expected "foo", got %q`,
 			s.RequiredVar,
 		)
+	}
+}
+
+func TestNestedStructVarName(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+	val := "found with only short name"
+	os.Setenv("INNER", val)
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if s.NestedSpecification.Property != val {
+		t.Errorf("expected %s, got %s", val, s.NestedSpecification.Property)
 	}
 }
 

@@ -50,11 +50,40 @@ func Process(prefix string, spec interface{}) error {
 	typeOfSpec := s.Type()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		if !f.CanSet() || typeOfSpec.Field(i).Tag.Get("ignored") == "true" {
+		ftype := typeOfSpec.Field(i)
+		if !f.CanSet() || ftype.Tag.Get("ignored") == "true" {
 			continue
 		}
 
+		for f.Kind() == reflect.Ptr {
+			if f.IsNil() {
+				if f.Type().Elem().Kind() != reflect.Struct {
+					// nil pointer to a non-struct: leave it alone
+					break
+				}
+				// nil pointer to struct: create a zero instance
+				f.Set(reflect.New(f.Type().Elem()))
+			}
+			f = f.Elem()
+		}
+
+		alt := ftype.Tag.Get("envconfig")
+		fieldName := ftype.Name
+		if alt != "" {
+			fieldName = alt
+		}
+
+		key := fieldName
+		if prefix != "" {
+			key = fmt.Sprintf("%s_%s", prefix, key)
+		}
+		key = strings.ToUpper(key)
+
 		if f.Kind() == reflect.Struct {
+			if !ftype.Anonymous {
+				prefix = key
+			}
+
 			embeddedPtr := f.Addr().Interface()
 			if err := Process(prefix, embeddedPtr); err != nil {
 				return err
@@ -63,17 +92,6 @@ func Process(prefix string, spec interface{}) error {
 
 			continue
 		}
-
-		alt := typeOfSpec.Field(i).Tag.Get("envconfig")
-		fieldName := typeOfSpec.Field(i).Name
-		if alt != "" {
-			fieldName = alt
-		}
-		key := fieldName
-		if prefix != "" {
-			key = fmt.Sprintf("%s_%s", prefix, key)
-		}
-		key = strings.ToUpper(key)
 
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
@@ -84,12 +102,12 @@ func Process(prefix string, spec interface{}) error {
 			value, ok = syscall.Getenv(key)
 		}
 
-		def := typeOfSpec.Field(i).Tag.Get("default")
+		def := ftype.Tag.Get("default")
 		if def != "" && !ok {
 			value = def
 		}
 
-		req := typeOfSpec.Field(i).Tag.Get("required")
+		req := ftype.Tag.Get("required")
 		if !ok && def == "" {
 			if req == "true" {
 				return fmt.Errorf("required key %s missing value", key)
