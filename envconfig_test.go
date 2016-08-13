@@ -36,6 +36,7 @@ type Specification struct {
 		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
 	} `envconfig:"outer"`
+	AfterNested string
 }
 
 type Embedded struct {
@@ -67,6 +68,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
 	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
 	os.Setenv("ENV_CONFIG_OUTER_INNER", "iamnested")
+	os.Setenv("ENV_CONFIG_AFTERNESTED", "after")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -117,6 +119,10 @@ func TestProcess(t *testing.T) {
 
 	if s.NestedSpecification.PropertyWithDefault != "fuzzybydefault" {
 		t.Errorf("expected default '%s' string, got %#v", "fuzzybydefault", s.NestedSpecification.PropertyWithDefault)
+	}
+
+	if s.AfterNested != "after" {
+		t.Errorf("expected default '%s' string, got %#v", "after", s.AfterNested)
 	}
 }
 

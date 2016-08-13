@@ -80,12 +80,13 @@ func Process(prefix string, spec interface{}) error {
 		key = strings.ToUpper(key)
 
 		if f.Kind() == reflect.Struct {
+			innerPrefix := prefix
 			if !ftype.Anonymous {
-				prefix = key
+				innerPrefix = key
 			}
 
 			embeddedPtr := f.Addr().Interface()
-			if err := Process(prefix, embeddedPtr); err != nil {
+			if err := Process(innerPrefix, embeddedPtr); err != nil {
 				return err
 			}
 			f.Set(reflect.ValueOf(embeddedPtr).Elem())
