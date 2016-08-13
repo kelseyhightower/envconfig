@@ -80,18 +80,21 @@ func Process(prefix string, spec interface{}) error {
 		key = strings.ToUpper(key)
 
 		if f.Kind() == reflect.Struct {
-			innerPrefix := prefix
-			if !ftype.Anonymous {
-				innerPrefix = key
-			}
+			// honor Decode if present
+			if decoderFrom(f) == nil {
+				innerPrefix := prefix
+				if !ftype.Anonymous {
+					innerPrefix = key
+				}
 
-			embeddedPtr := f.Addr().Interface()
-			if err := Process(innerPrefix, embeddedPtr); err != nil {
-				return err
-			}
-			f.Set(reflect.ValueOf(embeddedPtr).Elem())
+				embeddedPtr := f.Addr().Interface()
+				if err := Process(innerPrefix, embeddedPtr); err != nil {
+					return err
+				}
+				f.Set(reflect.ValueOf(embeddedPtr).Elem())
 
-			continue
+				continue
+			}
 		}
 
 		// `os.Getenv` cannot differentiate between an explicitly set empty value

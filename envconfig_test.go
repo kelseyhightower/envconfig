@@ -10,6 +10,15 @@ import (
 	"time"
 )
 
+type HonorDecodeInStruct struct {
+	Value string
+}
+
+func (h *HonorDecodeInStruct) Decode(env string) error {
+	h.Value = "decoded"
+	return nil
+}
+
 type Specification struct {
 	Embedded
 	EmbeddedButIgnored           `ignored:"true"`
@@ -36,7 +45,8 @@ type Specification struct {
 		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
 	} `envconfig:"outer"`
-	AfterNested string
+	AfterNested  string
+	DecodeStruct HonorDecodeInStruct `envconfig:"honor"`
 }
 
 type Embedded struct {
@@ -69,6 +79,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
 	os.Setenv("ENV_CONFIG_OUTER_INNER", "iamnested")
 	os.Setenv("ENV_CONFIG_AFTERNESTED", "after")
+	os.Setenv("ENV_CONFIG_HONOR", "honor")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -123,6 +134,10 @@ func TestProcess(t *testing.T) {
 
 	if s.AfterNested != "after" {
 		t.Errorf("expected default '%s' string, got %#v", "after", s.AfterNested)
+	}
+
+	if s.DecodeStruct.Value != "decoded" {
+		t.Errorf("expected default '%s' string, got %#v", "decoded", s.DecodeStruct.Value)
 	}
 }
 
