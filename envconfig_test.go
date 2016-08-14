@@ -6,6 +6,7 @@ package envconfig
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -471,9 +472,10 @@ func TestNonPointerFailsProperly(t *testing.T) {
 
 func TestCustomValueFields(t *testing.T) {
 	var s struct {
-		Foo string
-		Bar bracketed
-		Baz quoted
+		Foo    string
+		Bar    bracketed
+		Baz    quoted
+		Struct setterStruct
 	}
 
 	// Set would panic when the receiver is nil,
@@ -484,6 +486,7 @@ func TestCustomValueFields(t *testing.T) {
 	os.Setenv("ENV_CONFIG_FOO", "foo")
 	os.Setenv("ENV_CONFIG_BAR", "bar")
 	os.Setenv("ENV_CONFIG_BAZ", "baz")
+	os.Setenv("ENV_CONFIG_STRUCT", "inner")
 
 	if err := Process("env_config", &s); err != nil {
 		t.Error(err.Error())
@@ -500,13 +503,18 @@ func TestCustomValueFields(t *testing.T) {
 	if want := `["baz"]`; s.Baz.String() != want {
 		t.Errorf(`baz: got %#q, want %#q`, s.Baz, want)
 	}
+
+	if want := `setterstruct{"inner"}`; s.Struct.Inner != want {
+		t.Errorf(`Struct.Inner: got %#q, want %#q`, s.Struct.Inner, want)
+	}
 }
 
 func TestCustomPointerFields(t *testing.T) {
 	var s struct {
-		Foo string
-		Bar *bracketed
-		Baz *quoted
+		Foo    string
+		Bar    *bracketed
+		Baz    *quoted
+		Struct *setterStruct
 	}
 
 	// Set would panic when the receiver is nil,
@@ -518,6 +526,7 @@ func TestCustomPointerFields(t *testing.T) {
 	os.Setenv("ENV_CONFIG_FOO", "foo")
 	os.Setenv("ENV_CONFIG_BAR", "bar")
 	os.Setenv("ENV_CONFIG_BAZ", "baz")
+	os.Setenv("ENV_CONFIG_STRUCT", "inner")
 
 	if err := Process("env_config", &s); err != nil {
 		t.Error(err.Error())
@@ -533,6 +542,10 @@ func TestCustomPointerFields(t *testing.T) {
 
 	if want := `["baz"]`; s.Baz.String() != want {
 		t.Errorf(`baz: got %#q, want %#q`, s.Baz, want)
+	}
+
+	if want := `setterstruct{"inner"}`; s.Struct.Inner != want {
+		t.Errorf(`Struct.Inner: got %#q, want %#q`, s.Struct.Inner, want)
 	}
 }
 
@@ -586,4 +599,13 @@ type quoted struct{ flag.Value }
 
 func (d quoted) Decode(value string) error {
 	return d.Set(`"` + value + `"`)
+}
+
+type setterStruct struct {
+	Inner string
+}
+
+func (ss *setterStruct) Set(value string) error {
+	ss.Inner = fmt.Sprintf("setterstruct{%q}", value)
+	return nil
 }

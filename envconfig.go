@@ -87,7 +87,7 @@ func Process(prefix string, spec interface{}) error {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil {
+			if decoderFrom(f) == nil && setterFrom(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = key
