@@ -135,6 +135,7 @@ envconfig supports supports these struct field types:
   * int8, int16, int32, int64
   * bool
   * float32, float64
+  * [encoding.TextUnmarshaler](https://golang.org/pkg/encoding/#TextUnmarshaler)
 
 Embedded structs using these fields are also supported.
 
