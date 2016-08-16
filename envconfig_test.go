@@ -49,6 +49,7 @@ type Specification struct {
 	} `envconfig:"outer"`
 	AfterNested  string
 	DecodeStruct HonorDecodeInStruct `envconfig:"honor"`
+	Datetime     time.Time
 }
 
 type Embedded struct {
@@ -82,6 +83,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_OUTER_INNER", "iamnested")
 	os.Setenv("ENV_CONFIG_AFTERNESTED", "after")
 	os.Setenv("ENV_CONFIG_HONOR", "honor")
+	os.Setenv("ENV_CONFIG_DATETIME", "2016-08-16T18:57:05Z")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -140,6 +142,10 @@ func TestProcess(t *testing.T) {
 
 	if s.DecodeStruct.Value != "decoded" {
 		t.Errorf("expected default '%s' string, got %#v", "decoded", s.DecodeStruct.Value)
+	}
+
+	if expected := time.Date(2016, 8, 16, 18, 57, 05, 0, time.UTC); !s.Datetime.Equal(expected) {
+		t.Errorf("expected %s, got %s", expected.Format(time.RFC3339), s.Datetime.Format(time.RFC3339))
 	}
 }
 
@@ -578,6 +584,26 @@ func TestNestedStructVarName(t *testing.T) {
 	}
 	if s.NestedSpecification.Property != val {
 		t.Errorf("expected %s, got %s", val, s.NestedSpecification.Property)
+	}
+}
+
+func TestTextUnmarshalerError(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_DATETIME", "I'M NOT A DATE")
+
+	err := Process("env_config", &s)
+
+	v, ok := err.(*ParseError)
+	if !ok {
+		t.Errorf("expected ParseError, got %v", v)
+	}
+	if v.FieldName != "Datetime" {
+		t.Errorf("expected %s, got %v", "Debug", v.FieldName)
+	}
+	if s.Debug != false {
+		t.Errorf("expected %v, got %v", false, s.Debug)
 	}
 }
 

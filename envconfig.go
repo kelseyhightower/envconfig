@@ -5,6 +5,7 @@
 package envconfig
 
 import (
+	"encoding"
 	"errors"
 	"fmt"
 	"reflect"
@@ -87,7 +88,7 @@ func Process(prefix string, spec interface{}) error {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil {
+			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = key
@@ -156,6 +157,10 @@ func processField(value string, field reflect.Value) error {
 	setter := setterFrom(field)
 	if setter != nil {
 		return setter.Set(value)
+	}
+
+	if t := textUnmarshaler(field); t != nil {
+		return t.UnmarshalText([]byte(value))
 	}
 
 	if typ.Kind() == reflect.Ptr {
@@ -239,4 +244,9 @@ func decoderFrom(field reflect.Value) (d Decoder) {
 func setterFrom(field reflect.Value) (s Setter) {
 	interfaceFrom(field, func(v interface{}, ok *bool) { s, *ok = v.(Setter) })
 	return s
+}
+
+func textUnmarshaler(field reflect.Value) (t encoding.TextUnmarshaler) {
+	interfaceFrom(field, func(v interface{}, ok *bool) { t, *ok = v.(encoding.TextUnmarshaler) })
+	return t
 }
