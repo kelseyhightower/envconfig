@@ -22,7 +22,7 @@ func (h *HonorDecodeInStruct) Decode(env string) error {
 }
 
 type Specification struct {
-	Embedded
+	Embedded                     `desc:"can we document a struct"`
 	EmbeddedButIgnored           `ignored:"true"`
 	Debug                        bool
 	Port                         int
@@ -34,8 +34,8 @@ type Specification struct {
 	MagicNumbers                 []int
 	MultiWordVar                 string
 	SomePointer                  *string
-	SomePointerWithDefault       *string `default:"foo2baz"`
-	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
+	SomePointerWithDefault       *string `default:"foo2baz" desc:"foorbar is the word"`
+	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT" desc:"what alt"`
 	MultiWordVarWithLowerCaseAlt string  `envconfig:"multi_word_var_with_lower_case_alt"`
 	NoPrefixWithAlt              string  `envconfig:"SERVICE_HOST"`
 	DefaultVar                   string  `default:"foobar"`
@@ -53,7 +53,7 @@ type Specification struct {
 }
 
 type Embedded struct {
-	Enabled             bool
+	Enabled             bool `desc:"some embedded value"`
 	EmbeddedPort        int
 	MultiWordVar        string
 	MultiWordVarWithAlt string `envconfig:"MULTI_WITH_DIFFERENT_ALT"`
