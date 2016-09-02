@@ -44,21 +44,31 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
 }
 
-// Process populates the specified struct based on environment variables
-func Process(prefix string, spec interface{}) error {
-	// For splitting camelCased words
-	expr := regexp.MustCompile("([^A-Z]+|[A-Z][^A-Z]+|[A-Z]+)")
+// varInfo maintains information about the configuration variable
+type VarInfo struct {
+	Name  string
+	Alt   string
+	Key   string
+	Field reflect.Value
+	Tags  reflect.StructTag
+}
 
+// GatherInfo gathers information about the specified struct
+func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
+	expr := regexp.MustCompile("([^A-Z]+|[A-Z][^A-Z]+|[A-Z]+)")
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
-		return ErrInvalidSpecification
+		return nil, ErrInvalidSpecification
 	}
 	s = s.Elem()
 	if s.Kind() != reflect.Struct {
-		return ErrInvalidSpecification
+		return nil, ErrInvalidSpecification
 	}
 	typeOfSpec := s.Type()
+
+	// over allocate an info array, we will extend if needed later
+	infos := make([]VarInfo, 0, s.NumField())
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		ftype := typeOfSpec.Field(i)
@@ -72,14 +82,45 @@ func Process(prefix string, spec interface{}) error {
 					// nil pointer to a non-struct: leave it alone
 					break
 				}
-				// nil pointer to struct: create a zero instance
+				// nil point to struct: create a zero instnace
 				f.Set(reflect.New(f.Type().Elem()))
 			}
 			f = f.Elem()
 		}
 
+		/*
+			// Default to the field name as the env var name (will be upcased)
+			key := ftype.Name
+
+			// Best effort to un-pick camel casing as separate words
+			if ftype.Tag.Get("split_words") == "true" {
+				words := expr.FindAllStringSubmatch(ftype.Name, -1)
+				if len(words) > 0 {
+					var name []string
+					for _, words := range words {
+						name = append(name, words[0])
+					}
+
+					key = strings.Join(name, "_")
+				}
+			}
+
+			alt := ftype.Tag.Get("envconfig")
+			if alt != "" {
+				key = alt
+			}
+		*/
+
+		// Capture information about the config variable
+		info := VarInfo{
+			Name:  ftype.Name,
+			Field: f,
+			Tags:  ftype.Tag,
+			Alt:   strings.ToUpper(ftype.Tag.Get("envconfig")),
+		}
+
 		// Default to the field name as the env var name (will be upcased)
-		key := ftype.Name
+		info.Key = info.Name
 
 		// Best effort to un-pick camel casing as separate words
 		if ftype.Tag.Get("split_words") == "true" {
@@ -90,74 +131,81 @@ func Process(prefix string, spec interface{}) error {
 					name = append(name, words[0])
 				}
 
-				key = strings.Join(name, "_")
+				info.Key = strings.Join(name, "_")
 			}
 		}
-
-		alt := ftype.Tag.Get("envconfig")
-		if alt != "" {
-			key = alt
+		if info.Alt != "" {
+			info.Key = info.Alt
 		}
-
 		if prefix != "" {
-			key = fmt.Sprintf("%s_%s", prefix, key)
+			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
 		}
-
-		key = strings.ToUpper(key)
+		info.Key = strings.ToUpper(info.Key)
+		infos = append(infos, info)
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
 			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
-					innerPrefix = key
+					innerPrefix = info.Key
 				}
 
 				embeddedPtr := f.Addr().Interface()
-				if err := Process(innerPrefix, embeddedPtr); err != nil {
-					return err
+				embeddedInfos, err := GatherInfo(innerPrefix, embeddedPtr)
+				if err != nil {
+					return nil, err
 				}
-				f.Set(reflect.ValueOf(embeddedPtr).Elem())
+				infos = append(infos, embeddedInfos...)
 
 				continue
 			}
 		}
+	}
+	return infos, nil
+}
+
+// Process populates the specified struct based on environment variables
+func Process(prefix string, spec interface{}) error {
+	infos, err := GatherInfo(prefix, spec)
+
+	for _, info := range infos {
 
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer. We're using Go build tags
 		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(key)
-		if !ok && alt != "" {
-			key := strings.ToUpper(alt)
-			value, ok = lookupEnv(key)
+		value, ok := lookupEnv(info.Key)
+		if !ok && info.Alt != "" {
+			value, ok = lookupEnv(info.Alt)
 		}
 
-		def := ftype.Tag.Get("default")
+		def := info.Tags.Get("default")
 		if def != "" && !ok {
 			value = def
 		}
 
-		req := ftype.Tag.Get("required")
+		req := info.Tags.Get("required")
 		if !ok && def == "" {
 			if req == "true" {
-				return fmt.Errorf("required key %s missing value", key)
+				return fmt.Errorf("required key %s missing value", info.Key)
 			}
 			continue
 		}
 
-		err := processField(value, f)
+		err := processField(value, info.Field)
 		if err != nil {
 			return &ParseError{
-				KeyName:   key,
-				FieldName: ftype.Name,
-				TypeName:  f.Type().String(),
+				KeyName:   info.Key,
+				FieldName: info.Name,
+				TypeName:  info.Field.Type().String(),
 				Value:     value,
 				Err:       err,
 			}
 		}
 	}
-	return nil
+
+	return err
 }
 
 // MustProcess is the same as Process but panics if an error occurs
