@@ -43,18 +43,30 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
 }
 
-// Process populates the specified struct based on environment variables
-func Process(prefix string, spec interface{}) error {
+// varInfo maintains information about the configuration variable
+type VarInfo struct {
+	Name  string
+	Alt   string
+	Key   string
+	Field reflect.Value
+	Tags  reflect.StructTag
+}
+
+// GatherInfo gathers information about the specified struct
+func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
-		return ErrInvalidSpecification
+		return nil, ErrInvalidSpecification
 	}
 	s = s.Elem()
 	if s.Kind() != reflect.Struct {
-		return ErrInvalidSpecification
+		return nil, ErrInvalidSpecification
 	}
 	typeOfSpec := s.Type()
+
+	// over allocate an info array, we will extend if needed later
+	infos := make([]VarInfo, 0, s.NumField())
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		ftype := typeOfSpec.Field(i)
@@ -68,75 +80,91 @@ func Process(prefix string, spec interface{}) error {
 					// nil pointer to a non-struct: leave it alone
 					break
 				}
-				// nil pointer to struct: create a zero instance
+				// nil point to struct: create a zero instnace
 				f.Set(reflect.New(f.Type().Elem()))
 			}
 			f = f.Elem()
 		}
 
-		alt := ftype.Tag.Get("envconfig")
-		fieldName := ftype.Name
-		if alt != "" {
-			fieldName = alt
+		// Capture information about the config variable
+		info := VarInfo{
+			Name:  ftype.Name,
+			Field: f,
+			Tags:  ftype.Tag,
+			Alt:   strings.ToUpper(ftype.Tag.Get("envconfig")),
 		}
 
-		key := fieldName
-		if prefix != "" {
-			key = fmt.Sprintf("%s_%s", prefix, key)
+		info.Key = info.Name
+		if info.Alt != "" {
+			info.Key = info.Alt
 		}
-		key = strings.ToUpper(key)
+		if prefix != "" {
+			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
+		}
+		info.Key = strings.ToUpper(info.Key)
+		infos = append(infos, info)
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
 			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
-					innerPrefix = key
+					innerPrefix = info.Key
 				}
 
 				embeddedPtr := f.Addr().Interface()
-				if err := Process(innerPrefix, embeddedPtr); err != nil {
-					return err
+				embeddedInfos, err := GatherInfo(innerPrefix, embeddedPtr)
+				if err != nil {
+					return nil, err
 				}
-				f.Set(reflect.ValueOf(embeddedPtr).Elem())
+				infos = append(infos, embeddedInfos...)
 
 				continue
 			}
 		}
+	}
+	return infos, nil
+}
+
+// Process populates the specified struct based on environment variables
+func Process(prefix string, spec interface{}) error {
+	infos, err := GatherInfo(prefix, spec)
+
+	for _, info := range infos {
 
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer.
-		value, ok := syscall.Getenv(key)
-		if !ok && alt != "" {
-			key := strings.ToUpper(fieldName)
-			value, ok = syscall.Getenv(key)
+		value, ok := syscall.Getenv(info.Key)
+		if !ok && info.Alt != "" {
+			value, ok = syscall.Getenv(info.Alt)
 		}
 
-		def := ftype.Tag.Get("default")
+		def := info.Tags.Get("default")
 		if def != "" && !ok {
 			value = def
 		}
 
-		req := ftype.Tag.Get("required")
+		req := info.Tags.Get("required")
 		if !ok && def == "" {
 			if req == "true" {
-				return fmt.Errorf("required key %s missing value", key)
+				return fmt.Errorf("required key %s missing value", info.Key)
 			}
 			continue
 		}
 
-		err := processField(value, f)
+		err := processField(value, info.Field)
 		if err != nil {
 			return &ParseError{
-				KeyName:   key,
-				FieldName: fieldName,
-				TypeName:  f.Type().String(),
+				KeyName:   info.Key,
+				FieldName: info.Name,
+				TypeName:  info.Field.Type().String(),
 				Value:     value,
 			}
 		}
 	}
-	return nil
+
+	return err
 }
 
 // MustProcess is the same as Process but panics if an error occurs
