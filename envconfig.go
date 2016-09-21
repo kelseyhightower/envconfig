@@ -25,6 +25,7 @@ type ParseError struct {
 	FieldName string
 	TypeName  string
 	Value     string
+	Err       error
 }
 
 // Decoder has the same semantics as Setter, but takes higher precedence.
@@ -40,7 +41,7 @@ type Setter interface {
 }
 
 func (e *ParseError) Error() string {
-	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s", e.KeyName, e.FieldName, e.Value, e.TypeName)
+	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
 }
 
 // Process populates the specified struct based on environment variables
@@ -133,6 +134,7 @@ func Process(prefix string, spec interface{}) error {
 				FieldName: fieldName,
 				TypeName:  f.Type().String(),
 				Value:     value,
+				Err:       err,
 			}
 		}
 	}

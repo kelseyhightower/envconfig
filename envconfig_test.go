@@ -602,6 +602,17 @@ func TestTextUnmarshalerError(t *testing.T) {
 	if v.FieldName != "Datetime" {
 		t.Errorf("expected %s, got %v", "Debug", v.FieldName)
 	}
+
+	expectedLowLevelError := time.ParseError{
+		Layout:     time.RFC3339,
+		Value:      "I'M NOT A DATE",
+		LayoutElem: "2006",
+		ValueElem:  "I'M NOT A DATE",
+	}
+
+	if v.Err.Error() != expectedLowLevelError.Error() {
+		t.Errorf("expected %s, got %s", expectedLowLevelError, v.Err)
+	}
 	if s.Debug != false {
 		t.Errorf("expected %v, got %v", false, s.Debug)
 	}
