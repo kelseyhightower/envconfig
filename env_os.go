@@ -1,4 +1,4 @@
-// +build go1.5
+// +build appengine
 
 package envconfig
 
