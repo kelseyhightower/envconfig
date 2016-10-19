@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -107,11 +106,12 @@ func Process(prefix string, spec interface{}) error {
 
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
-		// but it is only available in go1.5 or newer.
-		value, ok := syscall.Getenv(key)
+		// but it is only available in go1.5 or newer. We're using Go build tags
+		// here to use os.LookupEnv for >=go1.5
+		value, ok := lookupEnv(key)
 		if !ok && alt != "" {
 			key := strings.ToUpper(fieldName)
-			value, ok = syscall.Getenv(key)
+			value, ok = lookupEnv(key)
 		}
 
 		def := ftype.Tag.Get("default")
