@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,9 @@ func (e *ParseError) Error() string {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
+	// For splitting camelCased words
+	expr := regexp.MustCompile("([^A-Z]+|[A-Z][^A-Z]+|[A-Z]+)")
+
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -74,8 +78,23 @@ func Process(prefix string, spec interface{}) error {
 			f = f.Elem()
 		}
 
-		alt := ftype.Tag.Get("envconfig")
+		// Default to the field name as the env var name (will be upcased)
 		fieldName := ftype.Name
+
+		// Best effort to un-pick camel casing as separate words
+		if ftype.Tag.Get("multi_word") == "true" {
+			words := expr.FindAllStringSubmatch(ftype.Name, -1)
+			if len(words) > 0 {
+				var name []string
+				for _, words := range words {
+					name = append(name, strings.ToUpper(words[0]))
+				}
+
+				fieldName = strings.Join(name, "_")
+			}
+		}
+
+		alt := ftype.Tag.Get("envconfig")
 		if alt != "" {
 			fieldName = alt
 		}
