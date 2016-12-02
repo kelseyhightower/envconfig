@@ -79,30 +79,30 @@ func Process(prefix string, spec interface{}) error {
 		}
 
 		// Default to the field name as the env var name (will be upcased)
-		fieldName := ftype.Name
+		key := ftype.Name
 
 		// Best effort to un-pick camel casing as separate words
-		if ftype.Tag.Get("multi_word") == "true" {
+		if ftype.Tag.Get("split_words") == "true" {
 			words := expr.FindAllStringSubmatch(ftype.Name, -1)
 			if len(words) > 0 {
 				var name []string
 				for _, words := range words {
-					name = append(name, strings.ToUpper(words[0]))
+					name = append(name, words[0])
 				}
 
-				fieldName = strings.Join(name, "_")
+				key = strings.Join(name, "_")
 			}
 		}
 
 		alt := ftype.Tag.Get("envconfig")
 		if alt != "" {
-			fieldName = alt
+			key = alt
 		}
 
-		key := fieldName
 		if prefix != "" {
 			key = fmt.Sprintf("%s_%s", prefix, key)
 		}
+
 		key = strings.ToUpper(key)
 
 		if f.Kind() == reflect.Struct {
@@ -129,7 +129,7 @@ func Process(prefix string, spec interface{}) error {
 		// here to use os.LookupEnv for >=go1.5
 		value, ok := lookupEnv(key)
 		if !ok && alt != "" {
-			key := strings.ToUpper(fieldName)
+			key := strings.ToUpper(alt)
 			value, ok = lookupEnv(key)
 		}
 
@@ -150,7 +150,7 @@ func Process(prefix string, spec interface{}) error {
 		if err != nil {
 			return &ParseError{
 				KeyName:   key,
-				FieldName: fieldName,
+				FieldName: ftype.Name,
 				TypeName:  f.Type().String(),
 				Value:     value,
 				Err:       err,
