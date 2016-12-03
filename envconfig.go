@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,9 @@ func (e *ParseError) Error() string {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
+	// For splitting camelCased words
+	expr := regexp.MustCompile("([^A-Z]+|[A-Z][^A-Z]+|[A-Z]+)")
+
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -74,16 +78,31 @@ func Process(prefix string, spec interface{}) error {
 			f = f.Elem()
 		}
 
-		alt := ftype.Tag.Get("envconfig")
-		fieldName := ftype.Name
-		if alt != "" {
-			fieldName = alt
+		// Default to the field name as the env var name (will be upcased)
+		key := ftype.Name
+
+		// Best effort to un-pick camel casing as separate words
+		if ftype.Tag.Get("split_words") == "true" {
+			words := expr.FindAllStringSubmatch(ftype.Name, -1)
+			if len(words) > 0 {
+				var name []string
+				for _, words := range words {
+					name = append(name, words[0])
+				}
+
+				key = strings.Join(name, "_")
+			}
 		}
 
-		key := fieldName
+		alt := ftype.Tag.Get("envconfig")
+		if alt != "" {
+			key = alt
+		}
+
 		if prefix != "" {
 			key = fmt.Sprintf("%s_%s", prefix, key)
 		}
+
 		key = strings.ToUpper(key)
 
 		if f.Kind() == reflect.Struct {
@@ -110,7 +129,7 @@ func Process(prefix string, spec interface{}) error {
 		// here to use os.LookupEnv for >=go1.5
 		value, ok := lookupEnv(key)
 		if !ok && alt != "" {
-			key := strings.ToUpper(fieldName)
+			key := strings.ToUpper(alt)
 			value, ok = lookupEnv(key)
 		}
 
@@ -131,7 +150,7 @@ func Process(prefix string, spec interface{}) error {
 		if err != nil {
 			return &ParseError{
 				KeyName:   key,
-				FieldName: fieldName,
+				FieldName: ftype.Name,
 				TypeName:  f.Type().String(),
 				Value:     value,
 				Err:       err,

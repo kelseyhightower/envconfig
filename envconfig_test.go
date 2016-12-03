@@ -33,6 +33,7 @@ type Specification struct {
 	AdminUsers                   []string
 	MagicNumbers                 []int
 	MultiWordVar                 string
+	MultiWordVarWithAutoSplit    uint32  `split_words:"true"`
 	SomePointer                  *string
 	SomePointerWithDefault       *string `default:"foo2baz"`
 	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT"`
@@ -84,6 +85,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_AFTERNESTED", "after")
 	os.Setenv("ENV_CONFIG_HONOR", "honor")
 	os.Setenv("ENV_CONFIG_DATETIME", "2016-08-16T18:57:05Z")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -146,6 +148,10 @@ func TestProcess(t *testing.T) {
 
 	if expected := time.Date(2016, 8, 16, 18, 57, 05, 0, time.UTC); !s.Datetime.Equal(expected) {
 		t.Errorf("expected %s, got %s", expected.Format(time.RFC3339), s.Datetime.Format(time.RFC3339))
+	}
+
+	if s.MultiWordVarWithAutoSplit != 24 {
+		t.Errorf("expected %q, got %q", 24, s.MultiWordVarWithAutoSplit)
 	}
 }
 
@@ -217,6 +223,23 @@ func TestParseErrorUint(t *testing.T) {
 	}
 	if s.TTL != 0 {
 		t.Errorf("expected %v, got %v", 0, s.TTL)
+	}
+}
+
+func TestParseErrorSplitWords(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "shakespeare")
+	err := Process("env_config", &s)
+	v, ok := err.(*ParseError)
+	if !ok {
+		t.Errorf("expected ParseError, got %v", v)
+	}
+	if v.FieldName != "MultiWordVarWithAutoSplit" {
+		t.Errorf("expected %s, got %v", "", v.FieldName)
+	}
+	if s.MultiWordVarWithAutoSplit != 0 {
+		t.Errorf("expected %v, got %v", 0, s.MultiWordVarWithAutoSplit)
 	}
 }
 
