@@ -91,19 +91,21 @@ type Specification struct {
     DefaultVar      string `default:"foobar"`
     RequiredVar     string `required:"true"`
     IgnoredVar      string `ignored:"true"`
-    AutoSplitVar    string `multi_word:"true"`
+    AutoSplitVar    string `split_words:"true"`
 }
 ```
 
-Envconfig has automatic support for camelcased struct elements when the
-`multi_word:"true"` tag is supplied. Without this tag, `AutoSplitVar` above
+Envconfig has automatic support for CamelCased struct elements when the
+`split_words:"true"` tag is supplied. Without this tag, `AutoSplitVar` above
 would look for an environment variable called `MYAPP_AUTOSPLITVAR`. With the
 setting applied it will look for `MYAPP_AUTO_SPLIT_VAR`. Note that numbers
 will get globbed into the previous word. If the setting does not do the
 right thing, you may use a manual override.
 
-Envconfig will process value for `ManualOverride` by populating it with the
-value for `MYAPP_MANUAL_OVERRIDE_1`.
+Envconfig will process value for `ManualOverride1` by populating it with the
+value for `MYAPP_MANUAL_OVERRIDE_1`. Without this struct tag, it would have
+instead looked up `MYAPP_MANUALOVERRIDE1`. With the `split_words:"true"` tag
+it would have looked up `MYAPP_MANUAL_OVERRIDE1`.
 
 ```Bash
 export MYAPP_MANUAL_OVERRIDE_1="this will be the value"
