@@ -88,29 +88,6 @@ func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
 			f = f.Elem()
 		}
 
-		/*
-			// Default to the field name as the env var name (will be upcased)
-			key := ftype.Name
-
-			// Best effort to un-pick camel casing as separate words
-			if ftype.Tag.Get("split_words") == "true" {
-				words := expr.FindAllStringSubmatch(ftype.Name, -1)
-				if len(words) > 0 {
-					var name []string
-					for _, words := range words {
-						name = append(name, words[0])
-					}
-
-					key = strings.Join(name, "_")
-				}
-			}
-
-			alt := ftype.Tag.Get("envconfig")
-			if alt != "" {
-				key = alt
-			}
-		*/
-
 		// Capture information about the config variable
 		info := VarInfo{
 			Name:  ftype.Name,
