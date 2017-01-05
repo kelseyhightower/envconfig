@@ -80,7 +80,7 @@ func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
 					// nil pointer to a non-struct: leave it alone
 					break
 				}
-				// nil point to struct: create a zero instnace
+				// nil pointer to struct: create a zero instance
 				f.Set(reflect.New(f.Type().Elem()))
 			}
 			f = f.Elem()
