@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -17,50 +16,32 @@ import (
 )
 
 const (
-	// NoHeader constant to use for no header on usage output
-	NoHeader = ""
-
-	// DefaultHeader constant to use for default header on usage output
-	DefaultHeader = `USAGE: {{ . }}
-  This application is configured via the environment. The following environment
-  variables can used specified:
-
-`
 	// DefaultListFormat constant to use to display usage in a list format
-	DefaultListFormat = `  {{.Key}}
-    [description] {{.Description}}
-    [type]        {{.Type}}
-    [default]     {{.Default}}
-    [required]    {{.Required}}`
-
+	DefaultListFormat = `This application is configured via the environment. The following environment
+variables can used specified:
+{{range .}}
+{{usage_key .}}
+  [description] {{usage_description .}}
+  [type]        {{usage_type .}}
+  [default]     {{usage_default .}}
+  [required]    {{usage_required .}}{{end}}
+`
 	// DefaultTableFormat constant to use to display usage in a tabluar format
-	DefaultTableFormat = "table  {{.Key}}\t{{.Type}}\t{{.Default}}\t{{.Required}}\t{{.Description}}"
+	DefaultTableFormat = `This application is configured via the environment. The following environment
+variables can used specified:
+
+KEY	TYPE	DEFAULT	REQUIRED	DESCRIPTION
+{{range .}}{{usage_key .}}	{{usage_type .}}	{{usage_default .}}	{{usage_required .}}	{{usage_description .}}
+{{end}}`
 )
 
-// usageInfo used to provide values for tabular output to the template function
-type usageInfo struct {
-	Key         string
-	Description string
-	Type        string
-	Default     string
-	Required    string
-}
-
-// toTypeDescription convert techie type information into something more human
+// toTypeDescription converts Go types into a human readable description
 func toTypeDescription(t reflect.Type) string {
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
-		return fmt.Sprintf("List of %s", toTypeDescription(t.Elem()))
+		return fmt.Sprintf("Comma-separated list of %s", toTypeDescription(t.Elem()))
 	case reflect.Ptr:
-		return fmt.Sprintf("Reference to %s", toTypeDescription(t.Elem()))
-	case reflect.Chan:
-		return fmt.Sprintf("Channel of %s", toTypeDescription(t.Elem()))
-	case reflect.Map:
-		return fmt.Sprintf("Map of %s to %s", toTypeDescription(t.Key()), toTypeDescription(t.Elem()))
-	case reflect.Func:
-		return "Function"
-	case reflect.Interface:
-		return "Interface"
+		return toTypeDescription(t.Elem())
 	case reflect.Struct:
 		if t.Name() != "" {
 			return t.Name()
@@ -77,175 +58,79 @@ func toTypeDescription(t reflect.Type) string {
 		if name != "" && name != "bool" {
 			return name
 		}
-		return "Boolean"
-	case reflect.Int:
+		return "True or False"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		name := t.Name()
-		if name != "" && name != "int" {
+		if name != "" && !strings.HasPrefix(name, "int") {
 			return name
 		}
 		return "Integer"
-	case reflect.Int8:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		name := t.Name()
-		if name != "" && name != "int8" {
-			return name
-		}
-		return "Integer(8 bits)"
-	case reflect.Int16:
-		name := t.Name()
-		if name != "" && name != "int16" {
-			return name
-		}
-		return "Integer(16 bits)"
-	case reflect.Int32:
-		name := t.Name()
-		if name != "" && name != "int32" {
-			return name
-		}
-		return "Integer(32 bits}"
-	case reflect.Int64:
-		name := t.Name()
-		if name != "" && name != "int64" {
-			return name
-		}
-		return "Integer(64 bits)"
-	case reflect.Uint:
-		name := t.Name()
-		if name != "" && name != "uint" {
+		if name != "" && !strings.HasPrefix(name, "uint") {
 			return name
 		}
 		return "Unsigned Integer"
-	case reflect.Uint8:
+	case reflect.Float32, reflect.Float64:
 		name := t.Name()
-		if name != "" && name != "uint8" {
-			return name
-		}
-		return "Unsigned Integer(8 bits)"
-	case reflect.Uint16:
-		name := t.Name()
-		if name != "" && name != "uint16" {
-			return name
-		}
-		return "Unsigned Integer(16 bits)"
-	case reflect.Uint32:
-		name := t.Name()
-		if name != "" && name != "uint32" {
-			return name
-		}
-		return "Unsigned Integer(32 bits}"
-	case reflect.Uint64:
-		name := t.Name()
-		if name != "" && name != "uint64" {
-			return name
-		}
-		return "Unsigned Integer(64 bits)"
-	case reflect.Float32:
-		name := t.Name()
-		if name != "" && name != "float32" {
+		if name != "" && !strings.HasPrefix(name, "float") {
 			return name
 		}
 		return "Float"
-	case reflect.Float64:
-		name := t.Name()
-		if name != "" && name != "float64" {
-			return name
-		}
-		return "Float(64 bits)"
-	case reflect.Complex64:
-		return "Complex(64 bits)"
-	case reflect.Complex128:
-		return "Complex(128 bits)"
 	}
 	return fmt.Sprintf("%+v", t)
 }
 
 // Usage writes usage information to stderr using the default header and table format
 func Usage(prefix string, spec interface{}) error {
-	return Usagef(prefix, spec, os.Stderr, DefaultHeader, DefaultTableFormat)
+	// The default is to output the usage information as a table
+	// Create tabwriter instance to support table output
+	tabs := tabwriter.NewWriter(os.Stdout, 1, 0, 4, ' ', 0)
+
+	err := Usagef(prefix, spec, tabs, DefaultTableFormat)
+	tabs.Flush()
+	return err
 }
 
-// Usagef writes usage information to the specified io.Writer using the specifed header and usage format
-func Usagef(prefix string, spec interface{}, out io.Writer, header string, format string) error {
+// Usagef writes usage information to the specified io.Writer using the specifed template specification
+func Usagef(prefix string, spec interface{}, out io.Writer, format string) error {
 
+	// Specify the default usage template functions
+	functions := template.FuncMap{
+		"usage_key":         func(v VarInfo) string { return v.Key },
+		"usage_description": func(v VarInfo) string { return v.Tags.Get("desc") },
+		"usage_type":        func(v VarInfo) string { return toTypeDescription(v.Field.Type()) },
+		"usage_default":     func(v VarInfo) string { return v.Tags.Get("default") },
+		"usage_required": func(v VarInfo) (string, error) {
+			req := v.Tags.Get("required")
+			if req != "" {
+				reqB, err := strconv.ParseBool(req)
+				if err != nil {
+					return "", err
+				}
+				if reqB {
+					req = "true"
+				}
+			}
+			return req, nil
+		},
+	}
+
+	tmpl, err := template.New("envconfig").Funcs(functions).Parse(format)
+	if err != nil {
+		return err
+	}
+
+	return Usaget(prefix, spec, out, tmpl)
+}
+
+// Usaget writes usage information to the specified io.Writer using the specified template
+func Usaget(prefix string, spec interface{}, out io.Writer, tmpl *template.Template) error {
 	// gather first
 	infos, err := GatherInfo(prefix, spec)
 	if err != nil {
 		return err
 	}
 
-	if header != NoHeader {
-		headerTmpl, err := template.New("envconfig_header").Parse(header)
-		if err != nil {
-			return err
-		}
-		err = headerTmpl.Execute(out, path.Base(os.Args[0]))
-		if err != nil {
-			return err
-		}
-	}
-
-	var tabs *tabwriter.Writer = nil
-	var tmpl *template.Template
-	var tmplSpec = format
-	var usage usageInfo
-
-	// If format is prefixed with "table" then strip it off to get the per-line template, display the table headers,
-	// and inject a tab write filter
-	if strings.HasPrefix(format, "table") {
-		tmplSpec = strings.TrimPrefix(format, "table")
-		tmpl, err = template.New("envconfig").Parse(tmplSpec)
-		if err != nil {
-			return nil
-		}
-		tabs = tabwriter.NewWriter(out, 1, 0, 4, ' ', 0)
-		out = tabs
-
-		usage = usageInfo{
-			Key:         "KEY",
-			Description: "DESCRIPTION",
-			Type:        "TYPE",
-			Default:     "DEFAULT",
-			Required:    "REQUIRED",
-		}
-		if err = tmpl.Execute(out, usage); err != nil {
-			return err
-		}
-		fmt.Fprintln(out)
-	} else {
-		// Not a table, so just use given filter as is
-		tmpl, err = template.New("envconfig").Parse(tmplSpec)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, info := range infos {
-		req := info.Tags.Get("required")
-		if req != "" {
-			reqB, err := strconv.ParseBool(req)
-			if err != nil {
-				return err
-			}
-			if reqB {
-				req = "true"
-			}
-		}
-		usage = usageInfo{
-			Key:         info.Key,
-			Description: info.Tags.Get("desc"),
-			Type:        toTypeDescription(info.Field.Type()),
-			Default:     info.Tags.Get("default"),
-			Required:    req,
-		}
-
-		if err := tmpl.Execute(out, usage); err != nil {
-			return err
-		}
-		fmt.Fprintln(out)
-	}
-	// If we injected a tab writer then we need to flush
-	if tabs != nil {
-		tabs.Flush()
-	}
-
-	return nil
+	return tmpl.Execute(out, infos)
 }
