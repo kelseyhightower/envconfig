@@ -7,274 +7,46 @@ package envconfig
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"testing"
 	"text/tabwriter"
 )
 
-var TestUsageDefaultResult string = `This.application.is.configured.via.the.environment..The.following.environment
-variables.can.used.specified:
+var testUsageTableResult, testUsageListResult, testUsageCustomResult, testUsageBadFormatResult string
 
-KEY..............................................TYPE...............................DEFAULT...........REQUIRED....DESCRIPTION
-ENV_CONFIG_EMBEDDED..............................Embedded.........................................................can.we.document.a.struct
-ENV_CONFIG_ENABLED...............................True.or.False....................................................some.embedded.value
-ENV_CONFIG_EMBEDDEDPORT..........................Integer..........................................................
-ENV_CONFIG_MULTIWORDVAR..........................String...........................................................
-ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT..............String...........................................................
-ENV_CONFIG_EMBEDDED_WITH_ALT.....................String...........................................................
-ENV_CONFIG_DEBUG.................................True.or.False....................................................
-ENV_CONFIG_PORT..................................Integer..........................................................
-ENV_CONFIG_RATE..................................Float............................................................
-ENV_CONFIG_USER..................................String...........................................................
-ENV_CONFIG_TTL...................................Unsigned.Integer.................................................
-ENV_CONFIG_TIMEOUT...............................Duration.........................................................
-ENV_CONFIG_ADMINUSERS............................Comma-separated.list.of.String...................................
-ENV_CONFIG_MAGICNUMBERS..........................Comma-separated.list.of.Integer..................................
-ENV_CONFIG_MULTIWORDVAR..........................String...........................................................
-ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT........Unsigned.Integer.................................................
-ENV_CONFIG_SOMEPOINTER...........................String...........................................................
-ENV_CONFIG_SOMEPOINTERWITHDEFAULT................String.............................foo2baz.......................foorbar.is.the.word
-ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT...............String...........................................................what.alt
-ENV_CONFIG_MULTI_WORD_VAR_WITH_LOWER_CASE_ALT....String...........................................................
-ENV_CONFIG_SERVICE_HOST..........................String...........................................................
-ENV_CONFIG_DEFAULTVAR............................String.............................foobar........................
-ENV_CONFIG_REQUIREDVAR...........................String...............................................true........
-ENV_CONFIG_BROKER................................String.............................127.0.0.1.....................
-ENV_CONFIG_REQUIREDDEFAULT.......................String.............................foo2bar...........true........
-ENV_CONFIG_OUTER.................................Nested.Struct....................................................
-ENV_CONFIG_OUTER_INNER...........................String...........................................................
-ENV_CONFIG_OUTER_PROPERTYWITHDEFAULT.............String.............................fuzzybydefault................
-ENV_CONFIG_AFTERNESTED...........................String...........................................................
-ENV_CONFIG_HONOR.................................HonorDecodeInStruct..............................................
-ENV_CONFIG_DATETIME..............................Time.............................................................
-`
+func TestMain(m *testing.M) {
 
-var TestUsageListResult string = `This.application.is.configured.via.the.environment..The.following.environment
-variables.can.used.specified:
+	// Load the expected test results from a text file
+	data, err := ioutil.ReadFile("test_files/default_table.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	testUsageTableResult = string(data)
 
-ENV_CONFIG_EMBEDDED
-..[description].can.we.document.a.struct
-..[type]........Embedded
-..[default].....
-..[required]....
-ENV_CONFIG_ENABLED
-..[description].some.embedded.value
-..[type]........True.or.False
-..[default].....
-..[required]....
-ENV_CONFIG_EMBEDDEDPORT
-..[description].
-..[type]........Integer
-..[default].....
-..[required]....
-ENV_CONFIG_MULTIWORDVAR
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_EMBEDDED_WITH_ALT
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_DEBUG
-..[description].
-..[type]........True.or.False
-..[default].....
-..[required]....
-ENV_CONFIG_PORT
-..[description].
-..[type]........Integer
-..[default].....
-..[required]....
-ENV_CONFIG_RATE
-..[description].
-..[type]........Float
-..[default].....
-..[required]....
-ENV_CONFIG_USER
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_TTL
-..[description].
-..[type]........Unsigned.Integer
-..[default].....
-..[required]....
-ENV_CONFIG_TIMEOUT
-..[description].
-..[type]........Duration
-..[default].....
-..[required]....
-ENV_CONFIG_ADMINUSERS
-..[description].
-..[type]........Comma-separated.list.of.String
-..[default].....
-..[required]....
-ENV_CONFIG_MAGICNUMBERS
-..[description].
-..[type]........Comma-separated.list.of.Integer
-..[default].....
-..[required]....
-ENV_CONFIG_MULTIWORDVAR
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT
-..[description].
-..[type]........Unsigned.Integer
-..[default].....
-..[required]....
-ENV_CONFIG_SOMEPOINTER
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_SOMEPOINTERWITHDEFAULT
-..[description].foorbar.is.the.word
-..[type]........String
-..[default].....foo2baz
-..[required]....
-ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT
-..[description].what.alt
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_MULTI_WORD_VAR_WITH_LOWER_CASE_ALT
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_SERVICE_HOST
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_DEFAULTVAR
-..[description].
-..[type]........String
-..[default].....foobar
-..[required]....
-ENV_CONFIG_REQUIREDVAR
-..[description].
-..[type]........String
-..[default].....
-..[required]....true
-ENV_CONFIG_BROKER
-..[description].
-..[type]........String
-..[default].....127.0.0.1
-..[required]....
-ENV_CONFIG_REQUIREDDEFAULT
-..[description].
-..[type]........String
-..[default].....foo2bar
-..[required]....true
-ENV_CONFIG_OUTER
-..[description].
-..[type]........Nested.Struct
-..[default].....
-..[required]....
-ENV_CONFIG_OUTER_INNER
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_OUTER_PROPERTYWITHDEFAULT
-..[description].
-..[type]........String
-..[default].....fuzzybydefault
-..[required]....
-ENV_CONFIG_AFTERNESTED
-..[description].
-..[type]........String
-..[default].....
-..[required]....
-ENV_CONFIG_HONOR
-..[description].
-..[type]........HonorDecodeInStruct
-..[default].....
-..[required]....
-ENV_CONFIG_DATETIME
-..[description].
-..[type]........Time
-..[default].....
-..[required]....
-`
+	data, err = ioutil.ReadFile("test_files/default_list.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	testUsageListResult = string(data)
 
-var TestUsageCustomResult = `ENV_CONFIG_EMBEDDED=can.we.document.a.struct
-ENV_CONFIG_ENABLED=some.embedded.value
-ENV_CONFIG_EMBEDDEDPORT=
-ENV_CONFIG_MULTIWORDVAR=
-ENV_CONFIG_MULTI_WITH_DIFFERENT_ALT=
-ENV_CONFIG_EMBEDDED_WITH_ALT=
-ENV_CONFIG_DEBUG=
-ENV_CONFIG_PORT=
-ENV_CONFIG_RATE=
-ENV_CONFIG_USER=
-ENV_CONFIG_TTL=
-ENV_CONFIG_TIMEOUT=
-ENV_CONFIG_ADMINUSERS=
-ENV_CONFIG_MAGICNUMBERS=
-ENV_CONFIG_MULTIWORDVAR=
-ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT=
-ENV_CONFIG_SOMEPOINTER=
-ENV_CONFIG_SOMEPOINTERWITHDEFAULT=foorbar.is.the.word
-ENV_CONFIG_MULTI_WORD_VAR_WITH_ALT=what.alt
-ENV_CONFIG_MULTI_WORD_VAR_WITH_LOWER_CASE_ALT=
-ENV_CONFIG_SERVICE_HOST=
-ENV_CONFIG_DEFAULTVAR=
-ENV_CONFIG_REQUIREDVAR=
-ENV_CONFIG_BROKER=
-ENV_CONFIG_REQUIREDDEFAULT=
-ENV_CONFIG_OUTER=
-ENV_CONFIG_OUTER_INNER=
-ENV_CONFIG_OUTER_PROPERTYWITHDEFAULT=
-ENV_CONFIG_AFTERNESTED=
-ENV_CONFIG_HONOR=
-ENV_CONFIG_DATETIME=
-`
+	data, err = ioutil.ReadFile("test_files/custom.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	testUsageCustomResult = string(data)
 
-var TestUsageBadFormatResult = `{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-{.Key}
-`
+	data, err = ioutil.ReadFile("test_files/fault.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	testUsageBadFormatResult = string(data)
+
+	retCode := m.Run()
+	os.Exit(retCode)
+}
 
 func compareUsage(want, got string, t *testing.T) {
 	have := strings.Replace(got, " ", ".", -1)
@@ -318,7 +90,7 @@ func TestUsageDefault(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	compareUsage(TestUsageDefaultResult, out, t)
+	compareUsage(testUsageTableResult, out, t)
 }
 
 func TestUsageTable(t *testing.T) {
@@ -331,7 +103,7 @@ func TestUsageTable(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	compareUsage(TestUsageDefaultResult, buf.String(), t)
+	compareUsage(testUsageTableResult, buf.String(), t)
 }
 
 func TestUsageList(t *testing.T) {
@@ -342,7 +114,7 @@ func TestUsageList(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	compareUsage(TestUsageListResult, buf.String(), t)
+	compareUsage(testUsageListResult, buf.String(), t)
 }
 
 func TestUsageCustomFormat(t *testing.T) {
@@ -353,7 +125,7 @@ func TestUsageCustomFormat(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	compareUsage(TestUsageCustomResult, buf.String(), t)
+	compareUsage(testUsageCustomResult, buf.String(), t)
 }
 
 func TestUsageUnknownKeyFormat(t *testing.T) {
@@ -379,5 +151,5 @@ func TestUsageBadFormat(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	compareUsage(TestUsageBadFormatResult, buf.String(), t)
+	compareUsage(testUsageBadFormatResult, buf.String(), t)
 }
