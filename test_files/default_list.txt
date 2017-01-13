@@ -1,11 +1,6 @@
 This.application.is.configured.via.the.environment..The.following.environment
-variables.can.used.specified:
+variables.can.be.used:
 
-ENV_CONFIG_EMBEDDED
-..[description].can.we.document.a.struct
-..[type]........Embedded
-..[default].....
-..[required]....
 ENV_CONFIG_ENABLED
 ..[description].some.embedded.value
 ..[type]........True.or.False
@@ -126,11 +121,6 @@ ENV_CONFIG_REQUIREDDEFAULT
 ..[type]........String
 ..[default].....foo2bar
 ..[required]....true
-ENV_CONFIG_OUTER
-..[description].
-..[type]........Nested.Struct
-..[default].....
-..[required]....
 ENV_CONFIG_OUTER_INNER
 ..[description].
 ..[type]........String

@@ -49,23 +49,23 @@ func TestMain(m *testing.M) {
 }
 
 func compareUsage(want, got string, t *testing.T) {
-	have := strings.Replace(got, " ", ".", -1)
-	if want != have {
+	got = strings.Replace(got, " ", ".", -1)
+	if want != got {
 		shortest := len(want)
-		if len(have) < shortest {
-			shortest = len(have)
+		if len(got) < shortest {
+			shortest = len(got)
 		}
-		if len(want) != len(have) {
-			t.Errorf("expected result length of %d, found %d", len(want), len(have))
+		if len(want) != len(got) {
+			t.Errorf("expected result length of %d, found %d", len(want), len(got))
 		}
 		for i := 0; i < shortest; i++ {
-			if want[i] != have[i] {
+			if want[i] != got[i] {
 				t.Errorf("difference at index %d, expected '%c' (%v), found '%c' (%v)\n",
-					i, want[i], want[i], have[i], have[i])
+					i, want[i], want[i], got[i], got[i])
 				break
 			}
 		}
-		t.Errorf("Complete Expected:\n'%s'\nComplete Found:\n'%s'\n", want, have)
+		t.Errorf("Complete Expected:\n'%s'\nComplete Found:\n'%s'\n", want, got)
 	}
 }
 

@@ -33,7 +33,7 @@ type Specification struct {
 	AdminUsers                   []string
 	MagicNumbers                 []int
 	MultiWordVar                 string
-	MultiWordVarWithAutoSplit    uint32  `split_words:"true"`
+	MultiWordVarWithAutoSplit    uint32 `split_words:"true"`
 	SomePointer                  *string
 	SomePointerWithDefault       *string `default:"foo2baz" desc:"foorbar is the word"`
 	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT" desc:"what alt"`

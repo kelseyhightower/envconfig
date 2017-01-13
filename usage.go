@@ -5,6 +5,7 @@
 package envconfig
 
 import (
+	"encoding"
 	"fmt"
 	"io"
 	"os"
@@ -18,7 +19,7 @@ import (
 const (
 	// DefaultListFormat constant to use to display usage in a list format
 	DefaultListFormat = `This application is configured via the environment. The following environment
-variables can used specified:
+variables can be used:
 {{range .}}
 {{usage_key .}}
   [description] {{usage_description .}}
@@ -28,12 +29,27 @@ variables can used specified:
 `
 	// DefaultTableFormat constant to use to display usage in a tabluar format
 	DefaultTableFormat = `This application is configured via the environment. The following environment
-variables can used specified:
+variables can be used:
 
 KEY	TYPE	DEFAULT	REQUIRED	DESCRIPTION
 {{range .}}{{usage_key .}}	{{usage_type .}}	{{usage_default .}}	{{usage_required .}}	{{usage_description .}}
 {{end}}`
 )
+
+var (
+	decoderType     = reflect.TypeOf((*Decoder)(nil)).Elem()
+	setterType      = reflect.TypeOf((*Setter)(nil)).Elem()
+	unmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+)
+
+func implementsInterface(t reflect.Type) bool {
+	return t.Implements(decoderType) ||
+		reflect.PtrTo(t).Implements(decoderType) ||
+		t.Implements(setterType) ||
+		reflect.PtrTo(t).Implements(setterType) ||
+		t.Implements(unmarshalerType) ||
+		reflect.PtrTo(t).Implements(unmarshalerType)
+}
 
 // toTypeDescription converts Go types into a human readable description
 func toTypeDescription(t reflect.Type) string {
@@ -43,10 +59,10 @@ func toTypeDescription(t reflect.Type) string {
 	case reflect.Ptr:
 		return toTypeDescription(t.Elem())
 	case reflect.Struct:
-		if t.Name() != "" {
+		if implementsInterface(t) && t.Name() != "" {
 			return t.Name()
 		}
-		return "Nested Struct"
+		return ""
 	case reflect.String:
 		name := t.Name()
 		if name != "" && name != "string" {

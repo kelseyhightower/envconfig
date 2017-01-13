@@ -133,7 +133,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 				if err != nil {
 					return nil, err
 				}
-				infos = append(infos, embeddedInfos...)
+				infos = append(infos[:len(infos)-1], embeddedInfos...)
 
 				continue
 			}
