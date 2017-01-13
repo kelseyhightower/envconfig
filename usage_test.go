@@ -20,25 +20,25 @@ var testUsageTableResult, testUsageListResult, testUsageCustomResult, testUsageB
 func TestMain(m *testing.M) {
 
 	// Load the expected test results from a text file
-	data, err := ioutil.ReadFile("test_files/default_table.txt")
+	data, err := ioutil.ReadFile("testdata/default_table.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	testUsageTableResult = string(data)
 
-	data, err = ioutil.ReadFile("test_files/default_list.txt")
+	data, err = ioutil.ReadFile("testdata/default_list.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	testUsageListResult = string(data)
 
-	data, err = ioutil.ReadFile("test_files/custom.txt")
+	data, err = ioutil.ReadFile("testdata/custom.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	testUsageCustomResult = string(data)
 
-	data, err = ioutil.ReadFile("test_files/fault.txt")
+	data, err = ioutil.ReadFile("testdata/fault.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
