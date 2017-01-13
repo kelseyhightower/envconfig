@@ -45,7 +45,7 @@ func (e *ParseError) Error() string {
 }
 
 // varInfo maintains information about the configuration variable
-type VarInfo struct {
+type varInfo struct {
 	Name  string
 	Alt   string
 	Key   string
@@ -54,7 +54,7 @@ type VarInfo struct {
 }
 
 // GatherInfo gathers information about the specified struct
-func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
+func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 	expr := regexp.MustCompile("([^A-Z]+|[A-Z][^A-Z]+|[A-Z]+)")
 	s := reflect.ValueOf(spec)
 
@@ -68,7 +68,7 @@ func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
 	typeOfSpec := s.Type()
 
 	// over allocate an info array, we will extend if needed later
-	infos := make([]VarInfo, 0, s.NumField())
+	infos := make([]varInfo, 0, s.NumField())
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		ftype := typeOfSpec.Field(i)
@@ -89,7 +89,7 @@ func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
 		}
 
 		// Capture information about the config variable
-		info := VarInfo{
+		info := varInfo{
 			Name:  ftype.Name,
 			Field: f,
 			Tags:  ftype.Tag,
@@ -129,7 +129,7 @@ func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
 				}
 
 				embeddedPtr := f.Addr().Interface()
-				embeddedInfos, err := GatherInfo(innerPrefix, embeddedPtr)
+				embeddedInfos, err := gatherInfo(innerPrefix, embeddedPtr)
 				if err != nil {
 					return nil, err
 				}
@@ -144,7 +144,7 @@ func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
-	infos, err := GatherInfo(prefix, spec)
+	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
 
