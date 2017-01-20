@@ -265,6 +265,27 @@ func processField(value string, field reflect.Value) error {
 			}
 		}
 		field.Set(sl)
+	case reflect.Map:
+		pairs := strings.Split(value, ",")
+		mp := reflect.MakeMap(typ)
+		for _, pair := range pairs {
+			kvpair := strings.Split(pair, ":")
+			if len(kvpair) != 2 {
+				return errors.New("invalid map item: " + pair)
+			}
+			k := reflect.New(typ.Key()).Elem()
+			err := processField(kvpair[0], k)
+			if err != nil {
+				return err
+			}
+			v := reflect.New(typ.Elem()).Elem()
+			err = processField(kvpair[1], v)
+			if err != nil {
+				return err
+			}
+			mp.SetMapIndex(k, v)
+		}
+		field.Set(mp)
 	}
 
 	return nil
