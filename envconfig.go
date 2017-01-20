@@ -271,7 +271,7 @@ func processField(value string, field reflect.Value) error {
 		for _, pair := range pairs {
 			kvpair := strings.Split(pair, ":")
 			if len(kvpair) != 2 {
-				return errors.New("invalid map item: " + pair)
+				return fmt.Errorf("invalid map item: %q", pair)
 			}
 			k := reflect.New(typ.Key()).Elem()
 			err := processField(kvpair[0], k)
