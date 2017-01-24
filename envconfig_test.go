@@ -32,6 +32,7 @@ type Specification struct {
 	Timeout                      time.Duration
 	AdminUsers                   []string
 	MagicNumbers                 []int
+	ColorCodes                   map[string]int
 	MultiWordVar                 string
 	MultiWordVarWithAutoSplit    uint32 `split_words:"true"`
 	SomePointer                  *string
@@ -77,6 +78,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
+	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
@@ -128,6 +130,21 @@ func TestProcess(t *testing.T) {
 	}
 	if s.Ignored != "" {
 		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+
+	if len(s.ColorCodes) != 3 ||
+		s.ColorCodes["red"] != 1 ||
+		s.ColorCodes["green"] != 2 ||
+		s.ColorCodes["blue"] != 3 {
+		t.Errorf(
+			"expected %#v, got %#v",
+			map[string]int{
+				"red":   1,
+				"green": 2,
+				"blue":  3,
+			},
+			s.ColorCodes,
+		)
 	}
 
 	if s.NestedSpecification.Property != "iamnested" {

@@ -56,6 +56,12 @@ func toTypeDescription(t reflect.Type) string {
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
 		return fmt.Sprintf("Comma-separated list of %s", toTypeDescription(t.Elem()))
+	case reflect.Map:
+		return fmt.Sprintf(
+			"Comma-separated list of %s:%s pairs",
+			toTypeDescription(t.Key()),
+			toTypeDescription(t.Elem()),
+		)
 	case reflect.Ptr:
 		return toTypeDescription(t.Elem())
 	case reflect.Struct:
