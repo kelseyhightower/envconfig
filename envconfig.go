@@ -5,9 +5,11 @@
 package envconfig
 
 import (
+	"bufio"
 	"encoding"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -188,6 +190,43 @@ func Process(prefix string, spec interface{}) error {
 // MustProcess is the same as Process but panics if an error occurs
 func MustProcess(prefix string, spec interface{}) {
 	if err := Process(prefix, spec); err != nil {
+		panic(err)
+	}
+}
+
+// ProcessFile first reads a .env file from disk and then calls Process
+func ProcessFile(prefix, path string, spec interface{}) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Reads in the .env file ignoring empty lines and comments starting with #
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "#") {
+			if s := strings.SplitN(line, "=", 2); len(s) == 2 {
+				os.Setenv(s[0], s[1])
+			}
+		}
+	}
+
+	if err = scanner.Err(); err != nil {
+		return err
+	}
+
+	if err = Process(prefix, spec); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MustProcessFile is the same as ProcessFile but panics if an error occurs
+func MustProcessFile(prefix, path string, spec interface{}) {
+	if err := ProcessFile(prefix, path, spec); err != nil {
 		panic(err)
 	}
 }
