@@ -5,7 +5,6 @@
 package envconfig
 
 import (
-	"context"
 	"encoding"
 	"errors"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/client"
+	"golang.org/x/net/context"
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
