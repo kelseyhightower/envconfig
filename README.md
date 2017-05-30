@@ -186,3 +186,42 @@ type DNSConfig struct {
 
 Also, envconfig will use a `Set(string) error` method like from the
 [flag.Value](https://godoc.org/flag#Value) interface if implemented.
+
+## Loading from an Environment File
+
+It is also possible to load environment variables from a .env file.
+
+Sample environment file /etc/default/myapp:
+
+```Bash
+MYAPP_DEBUG=false
+MYAPP_PORT=8080
+```
+
+```Go
+package main
+
+import (
+    "fmt"
+    "log"
+    "time"
+
+    "github.com/kelseyhightower/envconfig"
+)
+
+type Specification struct {
+    Debug       bool
+    Port        int
+}
+
+func main() {
+    var s Specification
+    err := envconfig.ProcessFile("myapp", "/etc/default/myapp", &s)
+    if err != nil {
+        log.Fatal(err.Error())
+    }
+
+    fmt.Println(s.Debug)
+    fmt.Println(s.Port)
+}
+```

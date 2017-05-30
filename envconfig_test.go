@@ -172,6 +172,22 @@ func TestProcess(t *testing.T) {
 	}
 }
 
+func TestProcessFile(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	err := ProcessFile("env_config", "testdata/env_file.txt", &s)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	// No need to retest every case in TestProcess again.
+	if !s.Debug {
+		t.Errorf("expected %v, got %v", true, s.Debug)
+	}
+	if s.Port != 8080 {
+		t.Errorf("expected %d, got %v", 8080, s.Port)
+	}
+}
+
 func TestParseErrorBool(t *testing.T) {
 	var s Specification
 	os.Clearenv()
