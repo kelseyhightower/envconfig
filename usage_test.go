@@ -72,9 +72,9 @@ func compareUsage(want, got string, t *testing.T) {
 func TestUsageDefault(t *testing.T) {
 	var s Specification
 	os.Clearenv()
-	save := os.Stdout
+	save := os.Stderr
 	r, w, _ := os.Pipe()
-	os.Stdout = w
+	os.Stderr = w
 	err := Usage("env_config", &s)
 	outC := make(chan string)
 	// copy the output in a separate goroutine so printing can't block indefinitely
@@ -84,7 +84,7 @@ func TestUsageDefault(t *testing.T) {
 		outC <- buf.String()
 	}()
 	w.Close()
-	os.Stdout = save // restoring the real stdout
+	os.Stderr = save // restoring the real stderr
 	out := <-outC
 
 	if err != nil {

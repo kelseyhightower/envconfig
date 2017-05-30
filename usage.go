@@ -107,7 +107,7 @@ func toTypeDescription(t reflect.Type) string {
 func Usage(prefix string, spec interface{}) error {
 	// The default is to output the usage information as a table
 	// Create tabwriter instance to support table output
-	tabs := tabwriter.NewWriter(os.Stdout, 1, 0, 4, ' ', 0)
+	tabs := tabwriter.NewWriter(os.Stderr, 1, 0, 4, ' ', 0)
 
 	err := Usagef(prefix, spec, tabs, DefaultTableFormat)
 	tabs.Flush()
