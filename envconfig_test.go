@@ -10,6 +10,9 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/coreos/etcd/client"
+	"github.com/monsooncommerce/mockEtcdClient"
 )
 
 type HonorDecodeInStruct struct {
@@ -92,84 +95,37 @@ func TestProcess(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	if s.NoPrefixWithAlt != "127.0.0.1" {
-		t.Errorf("expected %v, got %v", "127.0.0.1", s.NoPrefixWithAlt)
-	}
-	if !s.Debug {
-		t.Errorf("expected %v, got %v", true, s.Debug)
-	}
-	if s.Port != 8080 {
-		t.Errorf("expected %d, got %v", 8080, s.Port)
-	}
-	if s.Rate != 0.5 {
-		t.Errorf("expected %f, got %v", 0.5, s.Rate)
-	}
-	if s.TTL != 30 {
-		t.Errorf("expected %d, got %v", 30, s.TTL)
-	}
-	if s.User != "Kelsey" {
-		t.Errorf("expected %s, got %s", "Kelsey", s.User)
-	}
-	if s.Timeout != 2*time.Minute {
-		t.Errorf("expected %s, got %s", 2*time.Minute, s.Timeout)
-	}
-	if s.RequiredVar != "foo" {
-		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
-	}
-	if len(s.AdminUsers) != 3 ||
-		s.AdminUsers[0] != "John" ||
-		s.AdminUsers[1] != "Adam" ||
-		s.AdminUsers[2] != "Will" {
-		t.Errorf("expected %#v, got %#v", []string{"John", "Adam", "Will"}, s.AdminUsers)
-	}
-	if len(s.MagicNumbers) != 3 ||
-		s.MagicNumbers[0] != 5 ||
-		s.MagicNumbers[1] != 10 ||
-		s.MagicNumbers[2] != 20 {
-		t.Errorf("expected %#v, got %#v", []int{5, 10, 20}, s.MagicNumbers)
-	}
-	if s.Ignored != "" {
-		t.Errorf("expected empty string, got %#v", s.Ignored)
-	}
+	checkBasicProcess(s, t)
+}
 
-	if len(s.ColorCodes) != 3 ||
-		s.ColorCodes["red"] != 1 ||
-		s.ColorCodes["green"] != 2 ||
-		s.ColorCodes["blue"] != 3 {
-		t.Errorf(
-			"expected %#v, got %#v",
-			map[string]int{
-				"red":   1,
-				"green": 2,
-				"blue":  3,
-			},
-			s.ColorCodes,
-		)
+func TestProcessFromEtcd(t *testing.T) {
+	var s Specification
+	var kapi client.KeysAPI
+	mock := mockEtcdClient.FakeKeysAPI{}
+	kapi = &mock
+	mock.AllowUnordered = true
+	mock.ExpectGet("/ENV_CONFIG_DEBUG").WillReturnValue("true")
+	mock.ExpectGet("/ENV_CONFIG_PORT").WillReturnValue("8080")
+	mock.ExpectGet("/ENV_CONFIG_RATE").WillReturnValue("0.5")
+	mock.ExpectGet("/ENV_CONFIG_USER").WillReturnValue("Kelsey")
+	mock.ExpectGet("/ENV_CONFIG_TIMEOUT").WillReturnValue("2m")
+	mock.ExpectGet("/ENV_CONFIG_ADMINUSERS").WillReturnValue("John,Adam,Will")
+	mock.ExpectGet("/ENV_CONFIG_MAGICNUMBERS").WillReturnValue("5,10,20")
+	mock.ExpectGet("/ENV_CONFIG_COLORCODES").WillReturnValue("red:1,green:2,blue:3")
+	mock.ExpectGet("/SERVICE_HOST").WillReturnValue("127.0.0.1")
+	mock.ExpectGet("/ENV_CONFIG_TTL").WillReturnValue("30")
+	mock.ExpectGet("/ENV_CONFIG_REQUIREDVAR").WillReturnValue("foo")
+	mock.ExpectGet("/ENV_CONFIG_IGNORED").WillReturnValue("was-not-ignored")
+	mock.ExpectGet("/ENV_CONFIG_OUTER_INNER").WillReturnValue("iamnested")
+	mock.ExpectGet("/ENV_CONFIG_AFTERNESTED").WillReturnValue("after")
+	mock.ExpectGet("/ENV_CONFIG_HONOR").WillReturnValue("honor")
+	mock.ExpectGet("/ENV_CONFIG_DATETIME").WillReturnValue("2016-08-16T18:57:05Z")
+	mock.ExpectGet("/ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT").WillReturnValue("24")
+	err := ProcessFromEtcd("env_config", &s, kapi)
+	if err != nil {
+		t.Error(err.Error())
 	}
-
-	if s.NestedSpecification.Property != "iamnested" {
-		t.Errorf("expected '%s' string, got %#v", "iamnested", s.NestedSpecification.Property)
-	}
-
-	if s.NestedSpecification.PropertyWithDefault != "fuzzybydefault" {
-		t.Errorf("expected default '%s' string, got %#v", "fuzzybydefault", s.NestedSpecification.PropertyWithDefault)
-	}
-
-	if s.AfterNested != "after" {
-		t.Errorf("expected default '%s' string, got %#v", "after", s.AfterNested)
-	}
-
-	if s.DecodeStruct.Value != "decoded" {
-		t.Errorf("expected default '%s' string, got %#v", "decoded", s.DecodeStruct.Value)
-	}
-
-	if expected := time.Date(2016, 8, 16, 18, 57, 05, 0, time.UTC); !s.Datetime.Equal(expected) {
-		t.Errorf("expected %s, got %s", expected.Format(time.RFC3339), s.Datetime.Format(time.RFC3339))
-	}
-
-	if s.MultiWordVarWithAutoSplit != 24 {
-		t.Errorf("expected %q, got %q", 24, s.MultiWordVarWithAutoSplit)
-	}
+	checkBasicProcess(s, t)
 }
 
 func TestParseErrorBool(t *testing.T) {
@@ -695,4 +651,86 @@ type setterStruct struct {
 func (ss *setterStruct) Set(value string) error {
 	ss.Inner = fmt.Sprintf("setterstruct{%q}", value)
 	return nil
+}
+
+func checkBasicProcess(s Specification, t *testing.T) {
+
+	if s.NoPrefixWithAlt != "127.0.0.1" {
+		t.Errorf("expected %v, got %v", "127.0.0.1", s.NoPrefixWithAlt)
+	}
+	if !s.Debug {
+		t.Errorf("expected %v, got %v", true, s.Debug)
+	}
+	if s.Port != 8080 {
+		t.Errorf("expected %d, got %v", 8080, s.Port)
+	}
+	if s.Rate != 0.5 {
+		t.Errorf("expected %f, got %v", 0.5, s.Rate)
+	}
+	if s.TTL != 30 {
+		t.Errorf("expected %d, got %v", 30, s.TTL)
+	}
+	if s.User != "Kelsey" {
+		t.Errorf("expected %s, got %s", "Kelsey", s.User)
+	}
+	if s.Timeout != 2*time.Minute {
+		t.Errorf("expected %s, got %s", 2*time.Minute, s.Timeout)
+	}
+	if s.RequiredVar != "foo" {
+		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
+	}
+	if len(s.AdminUsers) != 3 ||
+		s.AdminUsers[0] != "John" ||
+		s.AdminUsers[1] != "Adam" ||
+		s.AdminUsers[2] != "Will" {
+		t.Errorf("expected %#v, got %#v", []string{"John", "Adam", "Will"}, s.AdminUsers)
+	}
+	if len(s.MagicNumbers) != 3 ||
+		s.MagicNumbers[0] != 5 ||
+		s.MagicNumbers[1] != 10 ||
+		s.MagicNumbers[2] != 20 {
+		t.Errorf("expected %#v, got %#v", []int{5, 10, 20}, s.MagicNumbers)
+	}
+	if s.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+
+	if len(s.ColorCodes) != 3 ||
+		s.ColorCodes["red"] != 1 ||
+		s.ColorCodes["green"] != 2 ||
+		s.ColorCodes["blue"] != 3 {
+		t.Errorf(
+			"expected %#v, got %#v",
+			map[string]int{
+				"red":   1,
+				"green": 2,
+				"blue":  3,
+			},
+			s.ColorCodes,
+		)
+	}
+
+	if s.NestedSpecification.Property != "iamnested" {
+		t.Errorf("expected '%s' string, got %#v", "iamnested", s.NestedSpecification.Property)
+	}
+
+	if s.NestedSpecification.PropertyWithDefault != "fuzzybydefault" {
+		t.Errorf("expected default '%s' string, got %#v", "fuzzybydefault", s.NestedSpecification.PropertyWithDefault)
+	}
+
+	if s.AfterNested != "after" {
+		t.Errorf("expected default '%s' string, got %#v", "after", s.AfterNested)
+	}
+
+	if s.DecodeStruct.Value != "decoded" {
+		t.Errorf("expected default '%s' string, got %#v", "decoded", s.DecodeStruct.Value)
+	}
+
+	if expected := time.Date(2016, 8, 16, 18, 57, 05, 0, time.UTC); !s.Datetime.Equal(expected) {
+		t.Errorf("expected %s, got %s", expected.Format(time.RFC3339), s.Datetime.Format(time.RFC3339))
+	}
+
+	if s.MultiWordVarWithAutoSplit != 24 {
+		t.Errorf("expected %q, got %q", 24, s.MultiWordVarWithAutoSplit)
+	}
 }

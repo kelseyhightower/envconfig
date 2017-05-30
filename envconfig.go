@@ -13,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/coreos/etcd/client"
+	"golang.org/x/net/context"
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
@@ -183,6 +186,27 @@ func Process(prefix string, spec interface{}) error {
 	}
 
 	return err
+}
+
+// ProcessFromEtcd modifies lookupFunc so that values come from the etcd
+// KeysAPI passed in as an argument, then calls Process as per usual
+func ProcessFromEtcd(prefix string, spec interface{}, kapi client.KeysAPI) error {
+	type lookupEnvFunc func(key string) (value string, found bool)
+	defer func(oldLookup lookupEnvFunc) {
+		lookupEnv = oldLookup
+	}(lookupEnv)
+	lookupEnv = func(key string) (value string, found bool) {
+		key = "/" + key
+		result, err := kapi.Get(context.Background(), key, nil)
+		if err != nil {
+			return "", false
+		}
+		if result == nil || result.Node == nil {
+			return "", false
+		}
+		return result.Node.Value, true
+	}
+	return Process(prefix, spec)
 }
 
 // MustProcess is the same as Process but panics if an error occurs
