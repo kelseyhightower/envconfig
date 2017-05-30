@@ -52,6 +52,11 @@ type Specification struct {
 	AfterNested  string
 	DecodeStruct HonorDecodeInStruct `envconfig:"honor"`
 	Datetime     time.Time
+	NestedInterface interface{}
+}
+
+type Anonymous struct {
+	Value string
 }
 
 type Embedded struct {
@@ -70,6 +75,7 @@ type EmbeddedButIgnored struct {
 
 func TestProcess(t *testing.T) {
 	var s Specification
+	s.NestedInterface = &Anonymous{}
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_DEBUG", "true")
 	os.Setenv("ENV_CONFIG_PORT", "8080")
@@ -88,6 +94,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_HONOR", "honor")
 	os.Setenv("ENV_CONFIG_DATETIME", "2016-08-16T18:57:05Z")
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
+	os.Setenv("ENV_CONFIG_NESTEDINTERFACE_VALUE", "bar")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -169,6 +176,14 @@ func TestProcess(t *testing.T) {
 
 	if s.MultiWordVarWithAutoSplit != 24 {
 		t.Errorf("expected %q, got %q", 24, s.MultiWordVarWithAutoSplit)
+	}
+
+	anon, ok := s.NestedInterface.(*Anonymous)
+	if !ok {
+		t.Error("Interface type changed")
+	}
+	if anon.Value != "bar" {
+		t.Errorf("expected %q, got %q", "bar", anon.Value)
 	}
 }
 

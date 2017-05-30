@@ -138,6 +138,15 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 				continue
 			}
 		}
+
+		if f.Kind() == reflect.Interface && !f.IsNil() {
+			innerPrefix := info.Key
+			embeddedInfos, err := gatherInfo(innerPrefix, f.Interface())
+			if err != nil {
+				return nil, err
+			}
+			infos = append(infos[:len(infos)-1], embeddedInfos...)
+		}
 	}
 	return infos, nil
 }
