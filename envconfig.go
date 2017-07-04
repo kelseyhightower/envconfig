@@ -256,7 +256,7 @@ func processField(value string, field reflect.Value) error {
 		}
 		field.SetFloat(val)
 	case reflect.Slice:
-		vals := strings.Split(value, ",")
+		vals := strings.FieldsFunc(value, func(c rune) bool { return c == ',' || c == ' ' })
 		sl := reflect.MakeSlice(typ, len(vals), len(vals))
 		for i, val := range vals {
 			err := processField(val, sl.Index(i))
@@ -266,7 +266,7 @@ func processField(value string, field reflect.Value) error {
 		}
 		field.Set(sl)
 	case reflect.Map:
-		pairs := strings.Split(value, ",")
+		pairs := strings.FieldsFunc(value, func(c rune) bool { return c == ',' || c == ' ' })
 		mp := reflect.MakeMap(typ)
 		for _, pair := range pairs {
 			kvpair := strings.Split(pair, ":")
