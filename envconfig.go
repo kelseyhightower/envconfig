@@ -144,6 +144,21 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
+	return Load(prefix, spec, lookupEnv)
+}
+
+// MustProcess is the same as Process but panics if an error occurs
+func MustProcess(prefix string, spec interface{}) {
+	MustLoad(prefix, spec, lookupEnv)
+}
+
+// LoaderFunc returns value for a given key
+type LoaderFunc func(key string) (value string, found bool)
+
+var _ LoaderFunc = lookupEnv
+
+// Load populates the specified struct based on loader function
+func Load(prefix string, spec interface{}, loader LoaderFunc) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -152,9 +167,9 @@ func Process(prefix string, spec interface{}) error {
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer. We're using Go build tags
 		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(info.Key)
+		value, ok := loader(info.Key)
 		if !ok && info.Alt != "" {
-			value, ok = lookupEnv(info.Alt)
+			value, ok = loader(info.Alt)
 		}
 
 		def := info.Tags.Get("default")
@@ -185,9 +200,9 @@ func Process(prefix string, spec interface{}) error {
 	return err
 }
 
-// MustProcess is the same as Process but panics if an error occurs
-func MustProcess(prefix string, spec interface{}) {
-	if err := Process(prefix, spec); err != nil {
+// MustLoad is the same as Load but panics if an error occurs
+func MustLoad(prefix string, spec interface{}, loader LoaderFunc) {
+	if err := Load(prefix, spec, loader); err != nil {
 		panic(err)
 	}
 }
