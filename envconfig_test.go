@@ -52,6 +52,7 @@ type Specification struct {
 	AfterNested  string
 	DecodeStruct HonorDecodeInStruct `envconfig:"honor"`
 	Datetime     time.Time
+	MapField     map[string]string `default:"one:two,three:four"`
 }
 
 type Embedded struct {
@@ -429,6 +430,24 @@ func TestPointerFieldBlank(t *testing.T) {
 
 	if s.SomePointer != nil {
 		t.Errorf("expected <nil>, got %q", *s.SomePointer)
+	}
+}
+
+func TestEmptyMapFieldOverride(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_MAPFIELD", "")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.MapField == nil {
+		t.Error("expected empty map, got <nil>")
+	}
+
+	if len(s.MapField) != 0 {
+		t.Errorf("expected empty map, got map of size %d", len(s.MapField))
 	}
 }
 
