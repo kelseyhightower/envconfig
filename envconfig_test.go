@@ -32,7 +32,6 @@ type Specification struct {
 	Timeout                      time.Duration
 	AdminUsers                   []string
 	EmptyList                    []string
-	ExtraSpaces                  []string
 	MagicNumbers                 []int
 	ColorCodes                   map[string]int
 	MultiWordVar                 string
@@ -80,7 +79,6 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
 	os.Setenv("ENV_CONFIG_EMPTYLIST", "")
-	os.Setenv("ENV_CONFIG_EXTRASPACES", " unit1:1, unit2 , unit2 ")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
 	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
@@ -128,12 +126,6 @@ func TestProcess(t *testing.T) {
 	}
 	if len(s.EmptyList) != 0 {
 		t.Errorf("expected %#v, got %#v", []string{}, s.EmptyList)
-	}
-	if len(s.ExtraSpaces) != 3 ||
-		s.ExtraSpaces[0] != "unit1:1" ||
-		s.ExtraSpaces[1] != "unit2" ||
-		s.ExtraSpaces[2] != "unit2" {
-		t.Errorf("expected %#v, got %#v", []string{"unit1:1", "unit2", "unit2"}, s.ExtraSpaces)
 	}
 	if len(s.MagicNumbers) != 3 ||
 		s.MagicNumbers[0] != 5 ||
