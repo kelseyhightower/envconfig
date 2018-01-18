@@ -40,6 +40,12 @@ type Setter interface {
 	Set(value string) error
 }
 
+// LookupEnvFunc retrieves the value of the environment variable named by the key.
+type LookupEnvFunc func(key string) (string, bool)
+
+// ProcessFunc populates the specified struct based on environment variables
+type ProcessFunc func(prefix string, spec interface{}) error
+
 func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
 }
@@ -144,6 +150,10 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
+	return process(lookupEnv, prefix, spec)
+}
+
+func process(le LookupEnvFunc, prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -152,9 +162,9 @@ func Process(prefix string, spec interface{}) error {
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer. We're using Go build tags
 		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(info.Key)
+		value, ok := le(info.Key)
 		if !ok && info.Alt != "" {
-			value, ok = lookupEnv(info.Alt)
+			value, ok = le(info.Alt)
 		}
 
 		def := info.Tags.Get("default")
