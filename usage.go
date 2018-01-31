@@ -37,9 +37,10 @@ KEY	TYPE	DEFAULT	REQUIRED	DESCRIPTION
 )
 
 var (
-	decoderType     = reflect.TypeOf((*Decoder)(nil)).Elem()
-	setterType      = reflect.TypeOf((*Setter)(nil)).Elem()
-	unmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	decoderType         = reflect.TypeOf((*Decoder)(nil)).Elem()
+	setterType          = reflect.TypeOf((*Setter)(nil)).Elem()
+	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	binaryUnmarshalerType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
 )
 
 func implementsInterface(t reflect.Type) bool {
@@ -47,8 +48,10 @@ func implementsInterface(t reflect.Type) bool {
 		reflect.PtrTo(t).Implements(decoderType) ||
 		t.Implements(setterType) ||
 		reflect.PtrTo(t).Implements(setterType) ||
-		t.Implements(unmarshalerType) ||
-		reflect.PtrTo(t).Implements(unmarshalerType)
+		t.Implements(textUnmarshalerType) ||
+		reflect.PtrTo(t).Implements(textUnmarshalerType) ||
+		t.Implements(binaryUnmarshalerType) ||
+		reflect.PtrTo(t).Implements(binaryUnmarshalerType)
 }
 
 // toTypeDescription converts Go types into a human readable description

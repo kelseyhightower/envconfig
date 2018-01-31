@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 	"time"
+	"net/url"
 )
 
 type HonorDecodeInStruct struct {
@@ -19,6 +20,16 @@ type HonorDecodeInStruct struct {
 func (h *HonorDecodeInStruct) Decode(env string) error {
 	h.Value = "decoded"
 	return nil
+}
+
+type CustomURL struct {
+	Value *url.URL
+}
+
+func (cu *CustomURL) UnmarshalBinary(data []byte) error {
+	u, err := url.Parse(string(data))
+	cu.Value = u
+	return err
 }
 
 type Specification struct {
@@ -53,6 +64,8 @@ type Specification struct {
 	DecodeStruct HonorDecodeInStruct `envconfig:"honor"`
 	Datetime     time.Time
 	MapField     map[string]string `default:"one:two,three:four"`
+	UrlValue     CustomURL
+	UrlPointer   *CustomURL
 }
 
 type Embedded struct {
@@ -89,6 +102,8 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_HONOR", "honor")
 	os.Setenv("ENV_CONFIG_DATETIME", "2016-08-16T18:57:05Z")
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
+	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -170,6 +185,19 @@ func TestProcess(t *testing.T) {
 
 	if s.MultiWordVarWithAutoSplit != 24 {
 		t.Errorf("expected %q, got %q", 24, s.MultiWordVarWithAutoSplit)
+	}
+
+	u, err := url.Parse("https://github.com/kelseyhightower/envconfig")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *s.UrlValue.Value != *u {
+		t.Errorf("expected %q, got %q", u, s.UrlValue.Value.String())
+	}
+
+	if *s.UrlPointer.Value != *u {
+		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
 	}
 }
 
@@ -669,7 +697,7 @@ func TestTextUnmarshalerError(t *testing.T) {
 		t.Errorf("expected ParseError, got %v", v)
 	}
 	if v.FieldName != "Datetime" {
-		t.Errorf("expected %s, got %v", "Debug", v.FieldName)
+		t.Errorf("expected %s, got %v", "Datetime", v.FieldName)
 	}
 
 	expectedLowLevelError := time.ParseError{
@@ -682,8 +710,34 @@ func TestTextUnmarshalerError(t *testing.T) {
 	if v.Err.Error() != expectedLowLevelError.Error() {
 		t.Errorf("expected %s, got %s", expectedLowLevelError, v.Err)
 	}
-	if s.Debug != false {
-		t.Errorf("expected %v, got %v", false, s.Debug)
+}
+
+func TestBinaryUnmarshalerError(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_URLPOINTER", "http://%41:8080/")
+
+	err := Process("env_config", &s)
+
+	v, ok := err.(*ParseError)
+	if !ok {
+		t.Fatalf("expected ParseError, got %T %v", err, err)
+	}
+	if v.FieldName != "UrlPointer" {
+		t.Errorf("expected %s, got %v", "UrlPointer", v.FieldName)
+	}
+
+	// To be compatible with go 1.5 and lower we should do a very basic check,
+	// because underlying error message varies in go 1.5 and go 1.6+.
+
+	ue, ok := v.Err.(*url.Error)
+	if !ok {
+		t.Errorf("expected error type to be \"*url.Error\", got %T", v.Err)
+	}
+
+	if ue.Op != "parse" {
+		t.Errorf("expected error op to be \"parse\", got %q", ue.Op)
 	}
 }
 

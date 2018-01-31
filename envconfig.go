@@ -122,7 +122,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil {
+			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil  {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = info.Key
@@ -207,6 +207,10 @@ func processField(value string, field reflect.Value) error {
 
 	if t := textUnmarshaler(field); t != nil {
 		return t.UnmarshalText([]byte(value))
+	}
+
+	if b := binaryUnmarshaler(field); b != nil {
+		return b.UnmarshalBinary([]byte(value))
 	}
 
 	if typ.Kind() == reflect.Ptr {
@@ -318,6 +322,11 @@ func setterFrom(field reflect.Value) (s Setter) {
 func textUnmarshaler(field reflect.Value) (t encoding.TextUnmarshaler) {
 	interfaceFrom(field, func(v interface{}, ok *bool) { t, *ok = v.(encoding.TextUnmarshaler) })
 	return t
+}
+
+func binaryUnmarshaler(field reflect.Value) (b encoding.BinaryUnmarshaler) {
+	interfaceFrom(field, func(v interface{}, ok *bool) { b, *ok = v.(encoding.BinaryUnmarshaler) })
+	return b
 }
 
 func isTrue(s string) bool {
