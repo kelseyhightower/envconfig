@@ -150,7 +150,7 @@ environment variable is set.
 
 ## Supported Struct Field Types
 
-envconfig supports supports these struct field types:
+envconfig supports these struct field types:
 
   * string
   * int8, int16, int32, int64
