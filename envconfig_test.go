@@ -741,6 +741,39 @@ func TestBinaryUnmarshalerError(t *testing.T) {
 	}
 }
 
+func TestCheckDisallowedOnlyAllowed(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEBUG", "true")
+	os.Setenv("UNRELATED_ENV_VAR", "true")
+	err := CheckDisallowed("env_config", &s)
+	if err != nil {
+		t.Errorf("expected no error, got %s", err)
+	}
+}
+
+func TestCheckDisallowedMispelled(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEBUG", "true")
+	os.Setenv("ENV_CONFIG_ZEBUG", "false")
+	err := CheckDisallowed("env_config", &s)
+	if experr := "unknown environment variable ENV_CONFIG_ZEBUG"; err.Error() != experr {
+		t.Errorf("expected %s, got %s", experr, err)
+	}
+}
+
+func TestCheckDisallowedIgnored(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEBUG", "true")
+	os.Setenv("ENV_CONFIG_IGNORED", "false")
+	err := CheckDisallowed("env_config", &s)
+	if experr := "unknown environment variable ENV_CONFIG_IGNORED"; err.Error() != experr {
+		t.Errorf("expected %s, got %s", experr, err)
+	}
+}
+
 type bracketed string
 
 func (b *bracketed) Set(value string) error {
