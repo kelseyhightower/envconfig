@@ -7,10 +7,11 @@ package envconfig
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
-	"net/url"
 )
 
 type HonorDecodeInStruct struct {
@@ -771,6 +772,23 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 	err := CheckDisallowed("env_config", &s)
 	if experr := "unknown environment variable ENV_CONFIG_IGNORED"; err.Error() != experr {
 		t.Errorf("expected %s, got %s", experr, err)
+	}
+}
+
+func TestErrorMessageForRequiredAltVar(t *testing.T) {
+	var s struct {
+		Foo    string `envconfig:"BAR" required:"true"`
+	}
+
+	os.Clearenv()
+	err := Process("env_config", &s)
+
+	if err == nil {
+		t.Error("no failure when missing required variable")
+	}
+
+	if !strings.Contains(err.Error(), " BAR ") {
+		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
 	}
 }
 
