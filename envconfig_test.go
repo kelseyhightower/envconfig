@@ -802,3 +802,28 @@ func (ss *setterStruct) Set(value string) error {
 	ss.Inner = fmt.Sprintf("setterstruct{%q}", value)
 	return nil
 }
+
+func BenchmarkGatherInfo(b *testing.B) {
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEBUG", "true")
+	os.Setenv("ENV_CONFIG_PORT", "8080")
+	os.Setenv("ENV_CONFIG_RATE", "0.5")
+	os.Setenv("ENV_CONFIG_USER", "Kelsey")
+	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
+	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
+	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
+	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
+	os.Setenv("SERVICE_HOST", "127.0.0.1")
+	os.Setenv("ENV_CONFIG_TTL", "30")
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_OUTER_INNER", "iamnested")
+	os.Setenv("ENV_CONFIG_AFTERNESTED", "after")
+	os.Setenv("ENV_CONFIG_HONOR", "honor")
+	os.Setenv("ENV_CONFIG_DATETIME", "2016-08-16T18:57:05Z")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
+	for i := 0; i < b.N; i++ {
+		var s Specification
+		gatherInfo("env_config", &s)
+	}
+}
