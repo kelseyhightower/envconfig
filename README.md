@@ -156,6 +156,7 @@ envconfig supports these struct field types:
   * int8, int16, int32, int64
   * bool
   * float32, float64
+  * time.Duration
   * slices of any supported type
   * maps (keys and values of any supported type)
   * [encoding.TextUnmarshaler](https://golang.org/pkg/encoding/#TextUnmarshaler)
