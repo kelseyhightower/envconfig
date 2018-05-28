@@ -293,12 +293,15 @@ func processField(value string, field reflect.Value) error {
 		}
 		field.SetFloat(val)
 	case reflect.Slice:
-		vals := strings.Split(value, ",")
-		sl := reflect.MakeSlice(typ, len(vals), len(vals))
-		for i, val := range vals {
-			err := processField(val, sl.Index(i))
-			if err != nil {
-				return err
+		sl := reflect.MakeSlice(typ, 0, 0)
+		if len(strings.TrimSpace(value)) != 0 {
+			vals := strings.Split(value, ",")
+			sl = reflect.MakeSlice(typ, len(vals), len(vals))
+			for i, val := range vals {
+				err := processField(val, sl.Index(i))
+				if err != nil {
+					return err
+				}
 			}
 		}
 		field.Set(sl)
