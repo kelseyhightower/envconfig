@@ -7,10 +7,10 @@ package envconfig
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 	"time"
-	"net/url"
 )
 
 type HonorDecodeInStruct struct {
