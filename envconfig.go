@@ -124,7 +124,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil  {
+			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = info.Key
@@ -175,8 +175,26 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	return nil
 }
 
+type lookupFunc func(string) (string, bool)
+
+func mapLookup(m map[string]string) lookupFunc {
+	return func(k string) (string, bool) {
+		v, ok := m[k]
+		return v, ok
+	}
+}
+
+// Check validates the given keys/values against the spec.
+func Check(prefix string, spec interface{}, kvs map[string]string) error {
+	return doProcess(prefix, spec, mapLookup(kvs))
+}
+
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
+	return doProcess(prefix, spec, lookupEnv)
+}
+
+func doProcess(prefix string, spec interface{}, env lookupFunc) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -185,9 +203,9 @@ func Process(prefix string, spec interface{}) error {
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer. We're using Go build tags
 		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(info.Key)
+		value, ok := env(info.Key)
 		if !ok && info.Alt != "" {
-			value, ok = lookupEnv(info.Alt)
+			value, ok = env(info.Alt)
 		}
 
 		def := info.Tags.Get("default")

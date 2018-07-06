@@ -7,10 +7,10 @@ package envconfig
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 	"time"
-	"net/url"
 )
 
 type HonorDecodeInStruct struct {
@@ -80,6 +80,126 @@ type Embedded struct {
 type EmbeddedButIgnored struct {
 	FirstEmbeddedButIgnored  string
 	SecondEmbeddedButIgnored string
+}
+
+func TestCheck(t *testing.T) {
+	var s Specification
+	env := map[string]string{
+		"ENV_CONFIG_DEBUG":                          "true",
+		"ENV_CONFIG_PORT":                           "8080",
+		"ENV_CONFIG_RATE":                           "0.5",
+		"ENV_CONFIG_USER":                           "Kelsey",
+		"ENV_CONFIG_TIMEOUT":                        "2m",
+		"ENV_CONFIG_ADMINUSERS":                     "John,Adam,Will",
+		"ENV_CONFIG_MAGICNUMBERS":                   "5,10,20",
+		"ENV_CONFIG_COLORCODES":                     "red:1,green:2,blue:3",
+		"SERVICE_HOST":                              "127.0.0.1",
+		"ENV_CONFIG_TTL":                            "30",
+		"ENV_CONFIG_REQUIREDVAR":                    "foo",
+		"ENV_CONFIG_IGNORED":                        "was-not-ignored",
+		"ENV_CONFIG_OUTER_INNER":                    "iamnested",
+		"ENV_CONFIG_AFTERNESTED":                    "after",
+		"ENV_CONFIG_HONOR":                          "honor",
+		"ENV_CONFIG_DATETIME":                       "2016-08-16T18:57:05Z",
+		"ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT": "24",
+		"ENV_CONFIG_URLVALUE":                       "https://github.com/kelseyhightower/envconfig",
+		"ENV_CONFIG_URLPOINTER":                     "https://github.com/kelseyhightower/envconfig",
+	}
+	err := Check("env_config", &s, env)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	if s.NoPrefixWithAlt != "127.0.0.1" {
+		t.Errorf("expected %v, got %v", "127.0.0.1", s.NoPrefixWithAlt)
+	}
+	if !s.Debug {
+		t.Errorf("expected %v, got %v", true, s.Debug)
+	}
+	if s.Port != 8080 {
+		t.Errorf("expected %d, got %v", 8080, s.Port)
+	}
+	if s.Rate != 0.5 {
+		t.Errorf("expected %f, got %v", 0.5, s.Rate)
+	}
+	if s.TTL != 30 {
+		t.Errorf("expected %d, got %v", 30, s.TTL)
+	}
+	if s.User != "Kelsey" {
+		t.Errorf("expected %s, got %s", "Kelsey", s.User)
+	}
+	if s.Timeout != 2*time.Minute {
+		t.Errorf("expected %s, got %s", 2*time.Minute, s.Timeout)
+	}
+	if s.RequiredVar != "foo" {
+		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
+	}
+	if len(s.AdminUsers) != 3 ||
+		s.AdminUsers[0] != "John" ||
+		s.AdminUsers[1] != "Adam" ||
+		s.AdminUsers[2] != "Will" {
+		t.Errorf("expected %#v, got %#v", []string{"John", "Adam", "Will"}, s.AdminUsers)
+	}
+	if len(s.MagicNumbers) != 3 ||
+		s.MagicNumbers[0] != 5 ||
+		s.MagicNumbers[1] != 10 ||
+		s.MagicNumbers[2] != 20 {
+		t.Errorf("expected %#v, got %#v", []int{5, 10, 20}, s.MagicNumbers)
+	}
+	if s.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+
+	if len(s.ColorCodes) != 3 ||
+		s.ColorCodes["red"] != 1 ||
+		s.ColorCodes["green"] != 2 ||
+		s.ColorCodes["blue"] != 3 {
+		t.Errorf(
+			"expected %#v, got %#v",
+			map[string]int{
+				"red":   1,
+				"green": 2,
+				"blue":  3,
+			},
+			s.ColorCodes,
+		)
+	}
+
+	if s.NestedSpecification.Property != "iamnested" {
+		t.Errorf("expected '%s' string, got %#v", "iamnested", s.NestedSpecification.Property)
+	}
+
+	if s.NestedSpecification.PropertyWithDefault != "fuzzybydefault" {
+		t.Errorf("expected default '%s' string, got %#v", "fuzzybydefault", s.NestedSpecification.PropertyWithDefault)
+	}
+
+	if s.AfterNested != "after" {
+		t.Errorf("expected default '%s' string, got %#v", "after", s.AfterNested)
+	}
+
+	if s.DecodeStruct.Value != "decoded" {
+		t.Errorf("expected default '%s' string, got %#v", "decoded", s.DecodeStruct.Value)
+	}
+
+	if expected := time.Date(2016, 8, 16, 18, 57, 05, 0, time.UTC); !s.Datetime.Equal(expected) {
+		t.Errorf("expected %s, got %s", expected.Format(time.RFC3339), s.Datetime.Format(time.RFC3339))
+	}
+
+	if s.MultiWordVarWithAutoSplit != 24 {
+		t.Errorf("expected %q, got %q", 24, s.MultiWordVarWithAutoSplit)
+	}
+
+	u, err := url.Parse("https://github.com/kelseyhightower/envconfig")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *s.UrlValue.Value != *u {
+		t.Errorf("expected %q, got %q", u, s.UrlValue.Value.String())
+	}
+
+	if *s.UrlPointer.Value != *u {
+		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
+	}
 }
 
 func TestProcess(t *testing.T) {
