@@ -16,6 +16,10 @@ import (
 	"time"
 )
 
+const (
+	validSeparators = ",;-/\\|~&#@.*+"
+)
+
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
@@ -124,7 +128,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil  {
+			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = info.Key
@@ -203,7 +207,24 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
-		err = processField(value, info.Field)
+		// Fetch the separator character, and default to comma if
+		// not set
+		sep := info.Tags.Get("sep")
+		if sep == "" {
+			sep = ","
+		}
+
+		// Limit separator to a single character and validate it is
+		// a supported charcter (most important that it isn't a
+		// colon so map processing works).
+		if len(sep) != 1 {
+			return fmt.Errorf("separator must be a single character, found '%s'", sep)
+		}
+		if !strings.Contains(validSeparators, sep) {
+			return fmt.Errorf("invalid separator '%s' found, must be one of '%s'", sep, validSeparators)
+		}
+
+		err = processField(value, info.Field, sep)
 		if err != nil {
 			return &ParseError{
 				KeyName:   info.Key,
@@ -225,7 +246,7 @@ func MustProcess(prefix string, spec interface{}) {
 	}
 }
 
-func processField(value string, field reflect.Value) error {
+func processField(value string, field reflect.Value, sep string) error {
 	typ := field.Type()
 
 	decoder := decoderFrom(field)
@@ -293,10 +314,10 @@ func processField(value string, field reflect.Value) error {
 		}
 		field.SetFloat(val)
 	case reflect.Slice:
-		vals := strings.Split(value, ",")
+		vals := strings.Split(value, sep)
 		sl := reflect.MakeSlice(typ, len(vals), len(vals))
 		for i, val := range vals {
-			err := processField(val, sl.Index(i))
+			err := processField(val, sl.Index(i), sep)
 			if err != nil {
 				return err
 			}
@@ -305,19 +326,19 @@ func processField(value string, field reflect.Value) error {
 	case reflect.Map:
 		mp := reflect.MakeMap(typ)
 		if len(strings.TrimSpace(value)) != 0 {
-			pairs := strings.Split(value, ",")
+			pairs := strings.Split(value, sep)
 			for _, pair := range pairs {
 				kvpair := strings.Split(pair, ":")
 				if len(kvpair) != 2 {
 					return fmt.Errorf("invalid map item: %q", pair)
 				}
 				k := reflect.New(typ.Key()).Elem()
-				err := processField(kvpair[0], k)
+				err := processField(kvpair[0], k, sep)
 				if err != nil {
 					return err
 				}
 				v := reflect.New(typ.Elem()).Elem()
-				err = processField(kvpair[1], v)
+				err = processField(kvpair[1], v, sep)
 				if err != nil {
 					return err
 				}

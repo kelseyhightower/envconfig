@@ -126,6 +126,16 @@ ENV_CONFIG_REQUIREDDEFAULT
 ..[type]........String
 ..[default].....foo2bar
 ..[required]....true
+ENV_CONFIG_ALT_LIST
+..[description].
+..[type]........Semicolon-separated.list.of.String
+..[default].....
+..[required]....
+ENV_CONFIG_ALT_MAP
+..[description].
+..[type]........Ampersand-separated.list.of.String:String.pairs
+..[default].....
+..[required]....
 ENV_CONFIG_OUTER_INNER
 ..[description].
 ..[type]........String

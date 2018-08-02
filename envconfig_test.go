@@ -7,10 +7,10 @@ package envconfig
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 	"time"
-	"net/url"
 )
 
 type HonorDecodeInStruct struct {
@@ -47,15 +47,17 @@ type Specification struct {
 	MultiWordVar                 string
 	MultiWordVarWithAutoSplit    uint32 `split_words:"true"`
 	SomePointer                  *string
-	SomePointerWithDefault       *string `default:"foo2baz" desc:"foorbar is the word"`
-	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT" desc:"what alt"`
-	MultiWordVarWithLowerCaseAlt string  `envconfig:"multi_word_var_with_lower_case_alt"`
-	NoPrefixWithAlt              string  `envconfig:"SERVICE_HOST"`
-	DefaultVar                   string  `default:"foobar"`
-	RequiredVar                  string  `required:"True"`
-	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
-	RequiredDefault              string  `required:"true" default:"foo2bar"`
-	Ignored                      string  `ignored:"true"`
+	SomePointerWithDefault       *string           `default:"foo2baz" desc:"foorbar is the word"`
+	MultiWordVarWithAlt          string            `envconfig:"MULTI_WORD_VAR_WITH_ALT" desc:"what alt"`
+	MultiWordVarWithLowerCaseAlt string            `envconfig:"multi_word_var_with_lower_case_alt"`
+	NoPrefixWithAlt              string            `envconfig:"SERVICE_HOST"`
+	DefaultVar                   string            `default:"foobar"`
+	RequiredVar                  string            `required:"True"`
+	NoPrefixDefault              string            `envconfig:"BROKER" default:"127.0.0.1"`
+	RequiredDefault              string            `required:"true" default:"foo2bar"`
+	Ignored                      string            `ignored:"true"`
+	AltList                      []string          `envconfig:"ALT_LIST" sep:";"`
+	AltMap                       map[string]string `envconfig:"ALT_MAP" sep:"&"`
 	NestedSpecification          struct {
 		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
@@ -771,6 +773,76 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 	err := CheckDisallowed("env_config", &s)
 	if experr := "unknown environment variable ENV_CONFIG_IGNORED"; err.Error() != experr {
 		t.Errorf("expected %s, got %s", experr, err)
+	}
+}
+
+func TestAltListSeparator(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_ALT_LIST", "one;two;three;two,words")
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	if len(s.AltList) != 4 {
+		t.Errorf("expected four (4) values, got %d", len(s.AltList))
+	}
+}
+
+func TestNegAltListSeparator(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_ALT_LIST", "one,two,three,two;words")
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	if len(s.AltList) != 2 {
+		t.Errorf("expected two (2) values, got %d", len(s.AltList))
+	}
+}
+
+func TestAltMapSeparator(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_ALT_MAP", "k1:v1&k2:v2&k3:v3,v4")
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	if len(s.AltMap) != 3 {
+		t.Errorf("expected three (3) values, got %d", len(s.AltMap))
+	}
+	if s.AltMap["k3"] != "v3,v4" {
+		t.Errorf("expected value of 'v3,v4', got %s", s.AltMap["k3"])
+	}
+}
+
+func TestNegAltMapSeparator(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_ALT_MAP", "k1:v1,k2:v2")
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	err := Process("env_config", &s)
+	if err == nil {
+		t.Errorf("expected error while processing map value, got nil")
+	}
+}
+
+type invalidSep struct {
+	InvalidListSep []string `envconfig:"ILS" sep:":"`
+}
+
+func TestInvalidListSeparator(t *testing.T) {
+	var s invalidSep
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_ILS", "one:two:three")
+	err := Process("env_config", &s)
+	if err == nil {
+		t.Errorf("expected invalid separator error, got nil")
 	}
 }
 

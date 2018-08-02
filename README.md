@@ -98,11 +98,12 @@ For example, consider the following struct:
 
 ```Go
 type Specification struct {
-    ManualOverride1 string `envconfig:"manual_override_1"`
-    DefaultVar      string `default:"foobar"`
-    RequiredVar     string `required:"true"`
-    IgnoredVar      string `ignored:"true"`
-    AutoSplitVar    string `split_words:"true"`
+    ManualOverride1        string `envconfig:"manual_override_1"`
+    DefaultVar             string `default:"foobar"`
+    RequiredVar            string `required:"true"`
+    IgnoredVar             string `ignored:"true"`
+    AutoSplitVar           string `split_words:"true"`
+    CustomListSeparatorVar string `sep:"&"`
 }
 ```
 
@@ -147,6 +148,10 @@ type Specification struct {
 
 Envconfig won't process a field with the "ignored" tag set to "true", even if a corresponding
 environment variable is set.
+
+Envconfig allows the override of the list separation character on a per
+field level. The separator must be a single character and be one of the
+supported characters: `,;-/\\|~&#@.*+`.
 
 ## Supported Struct Field Types
 

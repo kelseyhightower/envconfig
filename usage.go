@@ -37,9 +37,9 @@ KEY	TYPE	DEFAULT	REQUIRED	DESCRIPTION
 )
 
 var (
-	decoderType         = reflect.TypeOf((*Decoder)(nil)).Elem()
-	setterType          = reflect.TypeOf((*Setter)(nil)).Elem()
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	decoderType           = reflect.TypeOf((*Decoder)(nil)).Elem()
+	setterType            = reflect.TypeOf((*Setter)(nil)).Elem()
+	textUnmarshalerType   = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	binaryUnmarshalerType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
 )
 
@@ -54,19 +54,55 @@ func implementsInterface(t reflect.Type) bool {
 		reflect.PtrTo(t).Implements(binaryUnmarshalerType)
 }
 
+func toSeparatorName(sep string) string {
+	switch sep {
+	case "", ",":
+		return "Comma"
+	case ";":
+		return "Semicolon"
+	case "-":
+		return "Dash"
+	case "/":
+		return "Slash"
+	case "\\":
+		return "Backslash"
+	case "|":
+		return "Bar"
+	case "~":
+		return "Tilde"
+	case "&":
+		return "Ampersand"
+	case "#":
+		return "Hash"
+	case "@":
+		return "At"
+	case ".":
+		return "Period"
+	case "*":
+		return "Asterisk"
+	case "+":
+		return "Plus"
+	}
+	return fmt.Sprintf("\"%s\"", sep)
+}
+
 // toTypeDescription converts Go types into a human readable description
-func toTypeDescription(t reflect.Type) string {
+func toTypeDescription(t reflect.Type, sep string) string {
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
-		return fmt.Sprintf("Comma-separated list of %s", toTypeDescription(t.Elem()))
+		return fmt.Sprintf(
+			"%s-separated list of %s",
+			sep,
+			toTypeDescription(t.Elem(), sep))
 	case reflect.Map:
 		return fmt.Sprintf(
-			"Comma-separated list of %s:%s pairs",
-			toTypeDescription(t.Key()),
-			toTypeDescription(t.Elem()),
+			"%s-separated list of %s:%s pairs",
+			sep,
+			toTypeDescription(t.Key(), sep),
+			toTypeDescription(t.Elem(), sep),
 		)
 	case reflect.Ptr:
-		return toTypeDescription(t.Elem())
+		return toTypeDescription(t.Elem(), sep)
 	case reflect.Struct:
 		if implementsInterface(t) && t.Name() != "" {
 			return t.Name()
@@ -124,8 +160,17 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 	functions := template.FuncMap{
 		"usage_key":         func(v varInfo) string { return v.Key },
 		"usage_description": func(v varInfo) string { return v.Tags.Get("desc") },
-		"usage_type":        func(v varInfo) string { return toTypeDescription(v.Field.Type()) },
-		"usage_default":     func(v varInfo) string { return v.Tags.Get("default") },
+		"usage_type": func(v varInfo) (string, error) {
+			sep := v.Tags.Get("sep")
+			if sep == "" {
+				sep = ","
+			}
+			if len(sep) != 1 || !strings.Contains(validSeparators, sep) {
+				return "", fmt.Errorf("invalid separator specified, '%s'", sep)
+			}
+			return toTypeDescription(v.Field.Type(), toSeparatorName(sep)), nil
+		},
+		"usage_default": func(v varInfo) string { return v.Tags.Get("default") },
 		"usage_required": func(v varInfo) (string, error) {
 			req := v.Tags.Get("required")
 			if req != "" {
