@@ -307,7 +307,7 @@ func processField(value string, field reflect.Value) error {
 		if len(strings.TrimSpace(value)) != 0 {
 			pairs := strings.Split(value, ",")
 			for _, pair := range pairs {
-				kvpair := strings.Split(pair, ":")
+				kvpair := strings.SplitN(pair, ":", 2)
 				if len(kvpair) != 2 {
 					return fmt.Errorf("invalid map item: %q", pair)
 				}
