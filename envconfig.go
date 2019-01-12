@@ -124,7 +124,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil  {
+			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = info.Key
@@ -307,7 +307,7 @@ func processField(value string, field reflect.Value) error {
 		if len(strings.TrimSpace(value)) != 0 {
 			pairs := strings.Split(value, ",")
 			for _, pair := range pairs {
-				kvpair := strings.Split(pair, ":")
+				kvpair := strings.Split(pair, "=")
 				if len(kvpair) != 2 {
 					return fmt.Errorf("invalid map item: %q", pair)
 				}
