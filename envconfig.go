@@ -19,7 +19,8 @@ import (
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
-var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z][^A-Z]+|[A-Z]+)")
+var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
+var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -107,7 +108,11 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 			if len(words) > 0 {
 				var name []string
 				for _, words := range words {
-					name = append(name, words[0])
+					if m := acronymRegexp.FindStringSubmatch(words[0]); len(m) == 3 {
+						name = append(name, m[1], m[2])
+					} else {
+						name = append(name, words[0])
+					}
 				}
 
 				info.Key = strings.Join(name, "_")
@@ -124,7 +129,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil  {
+			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = info.Key
