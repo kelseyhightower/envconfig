@@ -124,7 +124,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil  {
+			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = info.Key
@@ -324,7 +324,16 @@ func processField(value string, field reflect.Value) error {
 				mp.SetMapIndex(k, v)
 			}
 		}
-		field.Set(mp)
+		if field.IsNil() {
+			field.Set(mp)
+		} else {
+			iter := mp.MapRange()
+			for iter.Next() {
+				field.SetMapIndex(iter.Key(), iter.Value())
+			}
+		}
+	case reflect.Interface:
+		field.Set(reflect.ValueOf(interface{}(value)))
 	}
 
 	return nil
