@@ -7,10 +7,10 @@ package envconfig
 import (
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"testing"
 	"time"
+	"net/url"
 )
 
 type HonorDecodeInStruct struct {
@@ -63,7 +63,7 @@ type Specification struct {
 	AfterNested  string
 	DecodeStruct HonorDecodeInStruct `envconfig:"honor"`
 	Datetime     time.Time
-	MapField     map[string]string `default:"one=two,three=four"`
+	MapField     map[string]string `default:"one:two,three:four"`
 	UrlValue     CustomURL
 	UrlPointer   *CustomURL
 }
@@ -92,7 +92,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
-	os.Setenv("ENV_CONFIG_COLORCODES", "red=1,green=2,blue=3")
+	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
@@ -812,7 +812,7 @@ func BenchmarkGatherInfo(b *testing.B) {
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
-	os.Setenv("ENV_CONFIG_COLORCODES", "red=1,green=2,blue=3")
+	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")

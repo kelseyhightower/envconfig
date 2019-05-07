@@ -154,7 +154,7 @@ ENV_CONFIG_DATETIME
 ENV_CONFIG_MAPFIELD
 ..[description].
 ..[type]........Comma-separated.list.of.String:String.pairs
-..[default].....one=two,three=four
+..[default].....one:two,three:four
 ..[required]....
 ENV_CONFIG_URLVALUE
 ..[description].
