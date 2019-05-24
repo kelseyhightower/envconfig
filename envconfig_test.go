@@ -43,6 +43,7 @@ type Specification struct {
 	Timeout                      time.Duration
 	AdminUsers                   []string
 	MagicNumbers                 []int
+	EmptyNumbers                 []int
 	ColorCodes                   map[string]int
 	MultiWordVar                 string
 	MultiWordVarWithAutoSplit    uint32 `split_words:"true"`
@@ -93,6 +94,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
+	os.Setenv("ENV_CONFIG_EMPTYNUMBERS", "")
 	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_TTL", "30")
@@ -145,6 +147,9 @@ func TestProcess(t *testing.T) {
 		s.MagicNumbers[1] != 10 ||
 		s.MagicNumbers[2] != 20 {
 		t.Errorf("expected %#v, got %#v", []int{5, 10, 20}, s.MagicNumbers)
+	}
+	if len(s.EmptyNumbers) != 0 {
+		t.Errorf("expected %#v, got %#v", []int{}, s.EmptyNumbers)
 	}
 	if s.Ignored != "" {
 		t.Errorf("expected empty string, got %#v", s.Ignored)
