@@ -303,7 +303,9 @@ func processField(value string, field reflect.Value) error {
 		field.SetFloat(val)
 	case reflect.Slice:
 		sl := reflect.MakeSlice(typ, 0, 0)
-		if len(strings.TrimSpace(value)) != 0 {
+		if typ.Elem().Kind() == reflect.Uint8 {
+			sl = reflect.ValueOf([]byte(value))
+		} else if len(strings.TrimSpace(value)) != 0 {
 			vals := strings.Split(value, ",")
 			sl = reflect.MakeSlice(typ, len(vals), len(vals))
 			for i, val := range vals {
