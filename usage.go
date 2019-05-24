@@ -37,9 +37,9 @@ KEY	TYPE	DEFAULT	REQUIRED	DESCRIPTION
 )
 
 var (
-	decoderType         = reflect.TypeOf((*Decoder)(nil)).Elem()
-	setterType          = reflect.TypeOf((*Setter)(nil)).Elem()
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	decoderType           = reflect.TypeOf((*Decoder)(nil)).Elem()
+	setterType            = reflect.TypeOf((*Setter)(nil)).Elem()
+	textUnmarshalerType   = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	binaryUnmarshalerType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
 )
 
