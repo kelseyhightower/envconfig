@@ -103,6 +103,7 @@ type Specification struct {
     RequiredVar     string `required:"true"`
     IgnoredVar      string `ignored:"true"`
     AutoSplitVar    string `split_words:"true"`
+    RequiredAndAutoSplitVar    string `required:"true" split_words:"true"`
 }
 ```
 
