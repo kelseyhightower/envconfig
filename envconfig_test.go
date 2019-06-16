@@ -794,7 +794,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()
@@ -804,8 +804,26 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 		t.Error("no failure when missing required variable")
 	}
 
-	if !strings.Contains(err.Error(), " BAR ") {
+	if !strings.Contains(err.Error(), " BAR") {
 		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
+	}
+}
+
+func TestErrorMessageForMultipleRequiredAltVar(t *testing.T) {
+	var s struct {
+		Foo string `envconfig:"FOO" required:"true"`
+		Bar string `envconfig:"BAR" required:"true"`
+	}
+
+	os.Clearenv()
+	err := Process("env_config", &s)
+
+	if err == nil {
+		t.Error("no failure when missing required variables")
+	}
+
+	if !strings.Contains(err.Error(), " FOO,BAR") {
+		t.Errorf("expected error message to contain FOO, BAR, got \"%v\"", err)
 	}
 }
 
