@@ -7,10 +7,10 @@ package envconfig
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 	"time"
-	"net/url"
 )
 
 type HonorDecodeInStruct struct {
@@ -66,6 +66,7 @@ type Specification struct {
 	MapField     map[string]string `default:"one:two,three:four"`
 	UrlValue     CustomURL
 	UrlPointer   *CustomURL
+	MappedUrl    map[string]CustomURL
 }
 
 type Embedded struct {
@@ -104,6 +105,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_MAPPEDURL", "one:https://github.com/kelseyhightower/envconfig,two:https://example.com/kelseyhightower/envconfig")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -198,6 +200,19 @@ func TestProcess(t *testing.T) {
 
 	if *s.UrlPointer.Value != *u {
 		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
+	}
+
+	if *s.MappedUrl["one"].Value != *u {
+		t.Errorf("expected %q, got %q", u, s.MappedUrl["one"].Value.String())
+	}
+
+	u, err = url.Parse("https://example.com/kelseyhightower/envconfig")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *s.MappedUrl["two"].Value != *u {
+		t.Errorf("expected %q, got %q", u, s.MappedUrl["two"].Value.String())
 	}
 }
 
