@@ -37,9 +37,9 @@ KEY	TYPE	DEFAULT	REQUIRED	DESCRIPTION
 )
 
 var (
-	decoderType         = reflect.TypeOf((*Decoder)(nil)).Elem()
-	setterType          = reflect.TypeOf((*Setter)(nil)).Elem()
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	decoderType           = reflect.TypeOf((*Decoder)(nil)).Elem()
+	setterType            = reflect.TypeOf((*Setter)(nil)).Elem()
+	textUnmarshalerType   = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	binaryUnmarshalerType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
 )
 
@@ -58,6 +58,9 @@ func implementsInterface(t reflect.Type) bool {
 func toTypeDescription(t reflect.Type) string {
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return "String"
+		}
 		return fmt.Sprintf("Comma-separated list of %s", toTypeDescription(t.Elem()))
 	case reflect.Map:
 		return fmt.Sprintf(
@@ -106,7 +109,7 @@ func toTypeDescription(t reflect.Type) string {
 	return fmt.Sprintf("%+v", t)
 }
 
-// Usage writes usage information to stderr using the default header and table format
+// Usage writes usage information to stdout using the default header and table format
 func Usage(prefix string, spec interface{}) error {
 	// The default is to output the usage information as a table
 	// Create tabwriter instance to support table output

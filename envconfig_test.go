@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -43,9 +44,12 @@ type Specification struct {
 	Timeout                      time.Duration
 	AdminUsers                   []string
 	MagicNumbers                 []int
+	EmptyNumbers                 []int
+	ByteSlice                    []byte
 	ColorCodes                   map[string]int
 	MultiWordVar                 string
 	MultiWordVarWithAutoSplit    uint32 `split_words:"true"`
+	MultiWordACRWithAutoSplit    uint32 `split_words:"true"`
 	SomePointer                  *string
 	SomePointerWithDefault       *string `default:"foo2baz" desc:"foorbar is the word"`
 	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT" desc:"what alt"`
@@ -93,6 +97,8 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
+	os.Setenv("ENV_CONFIG_EMPTYNUMBERS", "")
+	os.Setenv("ENV_CONFIG_BYTESLICE", "this is a test value")
 	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
 	os.Setenv("ENV_CONFIG_TTL", "30")
@@ -103,6 +109,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_HONOR", "honor")
 	os.Setenv("ENV_CONFIG_DATETIME", "2016-08-16T18:57:05Z")
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_MAPPEDURL", "one:https://github.com/kelseyhightower/envconfig,two:https://example.com/kelseyhightower/envconfig")
@@ -146,6 +153,13 @@ func TestProcess(t *testing.T) {
 		s.MagicNumbers[2] != 20 {
 		t.Errorf("expected %#v, got %#v", []int{5, 10, 20}, s.MagicNumbers)
 	}
+	if len(s.EmptyNumbers) != 0 {
+		t.Errorf("expected %#v, got %#v", []int{}, s.EmptyNumbers)
+	}
+	expected := "this is a test value"
+	if string(s.ByteSlice) != expected {
+		t.Errorf("expected %v, got %v", expected, string(s.ByteSlice))
+	}
 	if s.Ignored != "" {
 		t.Errorf("expected empty string, got %#v", s.Ignored)
 	}
@@ -187,6 +201,10 @@ func TestProcess(t *testing.T) {
 
 	if s.MultiWordVarWithAutoSplit != 24 {
 		t.Errorf("expected %q, got %q", 24, s.MultiWordVarWithAutoSplit)
+	}
+
+	if s.MultiWordACRWithAutoSplit != 25 {
+		t.Errorf("expected %d, got %d", 25, s.MultiWordACRWithAutoSplit)
 	}
 
 	u, err := url.Parse("https://github.com/kelseyhightower/envconfig")
@@ -786,6 +804,23 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 	err := CheckDisallowed("env_config", &s)
 	if experr := "unknown environment variable ENV_CONFIG_IGNORED"; err.Error() != experr {
 		t.Errorf("expected %s, got %s", experr, err)
+	}
+}
+
+func TestErrorMessageForRequiredAltVar(t *testing.T) {
+	var s struct {
+		Foo    string `envconfig:"BAR" required:"true"`
+	}
+
+	os.Clearenv()
+	err := Process("env_config", &s)
+
+	if err == nil {
+		t.Error("no failure when missing required variable")
+	}
+
+	if !strings.Contains(err.Error(), " BAR ") {
+		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
 	}
 }
 

@@ -3,15 +3,15 @@
 package envconfig
 
 import (
-	"os"
-	"net/url"
-	"testing"
 	"errors"
+	"net/url"
+	"os"
+	"testing"
 )
 
 type SpecWithURL struct {
-	UrlValue     url.URL
-	UrlPointer   *url.URL
+	UrlValue   url.URL
+	UrlPointer *url.URL
 }
 
 func TestParseURL(t *testing.T) {
