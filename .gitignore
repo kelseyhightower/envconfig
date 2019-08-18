@@ -1,0 +1,6 @@
+# go
+cpu.out
+mem.out
+cpu.svg
+mem.svg
+*.test
