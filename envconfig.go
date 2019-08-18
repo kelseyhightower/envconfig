@@ -5,7 +5,6 @@
 package envconfig
 
 import (
-	"encoding"
 	"errors"
 	"fmt"
 	"os"
@@ -14,6 +13,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	tagEnvconfig  string = "envconfig"
+	tagIgnored    string = "ignored"
+	tagSplitWords string = "split_words"
+	tagDefault    string = "default"
+	tagRequired   string = "required"
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
@@ -32,20 +39,9 @@ type ParseError struct {
 	Err       error
 }
 
-// Decoder has the same semantics as Setter, but takes higher precedence.
-// It is provided for historical compatibility.
-type Decoder interface {
-	Decode(value string) error
-}
-
-// Setter is implemented by types can self-deserialize values.
-// Any type that implements flag.Value also implements Setter.
-type Setter interface {
-	Set(value string) error
-}
-
 func (e *ParseError) Error() string {
-	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
+	format := "envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s"
+	return fmt.Sprintf(format, e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
 }
 
 // varInfo maintains information about the configuration variable
@@ -57,25 +53,29 @@ type varInfo struct {
 	Tags  reflect.StructTag
 }
 
+func (info *varInfo) UpperCaseKey() string {
+	return strings.ToUpper(info.Key)
+}
+
 // GatherInfo gathers information about the specified struct
 func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 	s := reflect.ValueOf(spec)
-
 	if s.Kind() != reflect.Ptr {
 		return nil, ErrInvalidSpecification
 	}
+
 	s = s.Elem()
 	if s.Kind() != reflect.Struct {
 		return nil, ErrInvalidSpecification
 	}
-	typeOfSpec := s.Type()
 
+	typeOfSpec := s.Type()
 	// over allocate an info array, we will extend if needed later
 	infos := make([]varInfo, 0, s.NumField())
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		ftype := typeOfSpec.Field(i)
-		if !f.CanSet() || isTrue(ftype.Tag.Get("ignored")) {
+		if !f.CanSet() || isTrue(ftype.Tag.Get(tagIgnored)) {
 			continue
 		}
 
@@ -96,33 +96,34 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 			Name:  ftype.Name,
 			Field: f,
 			Tags:  ftype.Tag,
-			Alt:   strings.ToUpper(ftype.Tag.Get("envconfig")),
+			Alt:   strings.ToUpper(ftype.Tag.Get(tagEnvconfig)),
 		}
 
 		// Default to the field name as the env var name (will be upcased)
 		info.Key = info.Name
 
 		// Best effort to un-pick camel casing as separate words
-		if isTrue(ftype.Tag.Get("split_words")) {
+		if isTrue(ftype.Tag.Get(tagSplitWords)) {
 			words := gatherRegexp.FindAllStringSubmatch(ftype.Name, -1)
-			if len(words) > 0 {
-				var name []string
-				for _, words := range words {
-					if m := acronymRegexp.FindStringSubmatch(words[0]); len(m) == 3 {
-						name = append(name, m[1], m[2])
-					} else {
-						name = append(name, words[0])
-					}
-				}
 
-				info.Key = strings.Join(name, "_")
+			var name []string
+			for wordIndex := 0; wordIndex < len(words); wordIndex++ {
+				matchedPattern := words[wordIndex][0]
+
+				m := acronymRegexp.FindStringSubmatch(matchedPattern)
+				if len(m) == 3 {
+					name = append(name, m[1], m[2])
+				} else {
+					name = append(name, matchedPattern)
+				}
 			}
+			info.Key = strings.Join(name, "_")
 		}
 		if info.Alt != "" {
 			info.Key = info.Alt
 		}
 		if prefix != "" {
-			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
+			info.Key = prefix + "_" + info.Key
 		}
 		info.Key = strings.ToUpper(info.Key)
 		infos = append(infos, info)
@@ -184,7 +185,8 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 func Process(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
 
-	for _, info := range infos {
+	for i := 0; i < len(infos); i++ {
+		info := infos[i]
 
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
@@ -195,25 +197,25 @@ func Process(prefix string, spec interface{}) error {
 			value, ok = lookupEnv(info.Alt)
 		}
 
-		def := info.Tags.Get("default")
-		if def != "" && !ok {
-			value = def
-		}
-
-		req := info.Tags.Get("required")
-		if !ok && def == "" {
-			if isTrue(req) {
-				key := info.Key
-				if info.Alt != "" {
-					key = info.Alt
-				}
-				return fmt.Errorf("required key %s missing value", key)
+		if !ok {
+			if def := info.Tags.Get(tagDefault); def != "" {
+				value = def
 			}
-			continue
 		}
 
-		err = processField(value, info.Field)
-		if err != nil {
+		if !ok && value == "" {
+			if req := info.Tags.Get(tagRequired); !isTrue(req) {
+				continue
+			}
+
+			key := info.Key
+			if info.Alt != "" {
+				key = info.Alt
+			}
+			return fmt.Errorf("required key %s missing value", key)
+		}
+
+		if err = processField(value, info.Field); err != nil {
 			return &ParseError{
 				KeyName:   info.Key,
 				FieldName: info.Name,
@@ -237,13 +239,12 @@ func MustProcess(prefix string, spec interface{}) {
 func processField(value string, field reflect.Value) error {
 	typ := field.Type()
 
-	decoder := decoderFrom(field)
-	if decoder != nil {
+	if decoder := decoderFrom(field); decoder != nil {
 		return decoder.Decode(value)
 	}
+
 	// look for Set method if Decode not defined
-	setter := setterFrom(field)
-	if setter != nil {
+	if setter := setterFrom(field); setter != nil {
 		return setter.Set(value)
 	}
 
@@ -342,41 +343,4 @@ func processField(value string, field reflect.Value) error {
 	}
 
 	return nil
-}
-
-func interfaceFrom(field reflect.Value, fn func(interface{}, *bool)) {
-	// it may be impossible for a struct field to fail this check
-	if !field.CanInterface() {
-		return
-	}
-	var ok bool
-	fn(field.Interface(), &ok)
-	if !ok && field.CanAddr() {
-		fn(field.Addr().Interface(), &ok)
-	}
-}
-
-func decoderFrom(field reflect.Value) (d Decoder) {
-	interfaceFrom(field, func(v interface{}, ok *bool) { d, *ok = v.(Decoder) })
-	return d
-}
-
-func setterFrom(field reflect.Value) (s Setter) {
-	interfaceFrom(field, func(v interface{}, ok *bool) { s, *ok = v.(Setter) })
-	return s
-}
-
-func textUnmarshaler(field reflect.Value) (t encoding.TextUnmarshaler) {
-	interfaceFrom(field, func(v interface{}, ok *bool) { t, *ok = v.(encoding.TextUnmarshaler) })
-	return t
-}
-
-func binaryUnmarshaler(field reflect.Value) (b encoding.BinaryUnmarshaler) {
-	interfaceFrom(field, func(v interface{}, ok *bool) { b, *ok = v.(encoding.BinaryUnmarshaler) })
-	return b
-}
-
-func isTrue(s string) bool {
-	b, _ := strconv.ParseBool(s)
-	return b
 }
