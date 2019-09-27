@@ -21,6 +21,7 @@ var ErrInvalidSpecification = errors.New("specification must be a struct pointer
 
 var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
 var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
+const DefaultMapSeparator = ":"
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -212,7 +213,7 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
-		err = processField(value, info.Field)
+		err = processField(value, info.Field, info.Tags)
 		if err != nil {
 			return &ParseError{
 				KeyName:   info.Key,
@@ -234,7 +235,7 @@ func MustProcess(prefix string, spec interface{}) {
 	}
 }
 
-func processField(value string, field reflect.Value) error {
+func processField(value string, field reflect.Value, tags reflect.StructTag) error {
 	typ := field.Type()
 
 	decoder := decoderFrom(field)
@@ -309,7 +310,7 @@ func processField(value string, field reflect.Value) error {
 			vals := strings.Split(value, ",")
 			sl = reflect.MakeSlice(typ, len(vals), len(vals))
 			for i, val := range vals {
-				err := processField(val, sl.Index(i))
+				err := processField(val, sl.Index(i), tags)
 				if err != nil {
 					return err
 				}
@@ -318,20 +319,31 @@ func processField(value string, field reflect.Value) error {
 		field.Set(sl)
 	case reflect.Map:
 		mp := reflect.MakeMap(typ)
+
+		mapSeparator := DefaultMapSeparator
+
+		mapSeparatorTag := tags.Get("map_separator")
+		if mapSeparatorTag != "" {
+			mapSeparator = mapSeparatorTag
+		}
+
 		if len(strings.TrimSpace(value)) != 0 {
 			pairs := strings.Split(value, ",")
 			for _, pair := range pairs {
-				kvpair := strings.Split(pair, ":")
+				// NOTE: Split exactly once from left to right to make sure
+				// `key<mapSeparator>value`'s value is not mangled,
+				// which may contain the map separator as part of the value.
+				kvpair := strings.SplitN(pair, mapSeparator, 2)
 				if len(kvpair) != 2 {
 					return fmt.Errorf("invalid map item: %q", pair)
 				}
 				k := reflect.New(typ.Key()).Elem()
-				err := processField(kvpair[0], k)
+				err := processField(kvpair[0], k, tags)
 				if err != nil {
 					return err
 				}
 				v := reflect.New(typ.Elem()).Elem()
-				err = processField(kvpair[1], v)
+				err = processField(kvpair[1], v, tags)
 				if err != nil {
 					return err
 				}
