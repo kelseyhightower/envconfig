@@ -98,12 +98,13 @@ For example, consider the following struct:
 
 ```Go
 type Specification struct {
-    ManualOverride1 string `envconfig:"manual_override_1"`
-    DefaultVar      string `default:"foobar"`
-    RequiredVar     string `required:"true"`
-    IgnoredVar      string `ignored:"true"`
-    AutoSplitVar    string `split_words:"true"`
+    ManualOverride1            string `envconfig:"manual_override_1"`
+    DefaultVar                 string `default:"foobar"`
+    RequiredVar                string `required:"true"`
+    IgnoredVar                 string `ignored:"true"`
+    AutoSplitVar               string `split_words:"true"`
     RequiredAndAutoSplitVar    string `required:"true" split_words:"true"`
+    CustomMapSeparator         map[string]string `map_separator:"="`
 }
 ```
 
@@ -118,6 +119,9 @@ Envconfig will process value for `ManualOverride1` by populating it with the
 value for `MYAPP_MANUAL_OVERRIDE_1`. Without this struct tag, it would have
 instead looked up `MYAPP_MANUALOVERRIDE1`. With the `split_words:"true"` tag
 it would have looked up `MYAPP_MANUAL_OVERRIDE1`.
+
+If you want to have a custom map separator, you can use `map_separator`.
+ The value will be split at most once by the `map_separator`.
 
 ```Bash
 export MYAPP_MANUAL_OVERRIDE_1="this will be the value"
