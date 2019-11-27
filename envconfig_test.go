@@ -33,6 +33,13 @@ func (cu *CustomURL) UnmarshalBinary(data []byte) error {
 	return err
 }
 
+type CustomUser string
+
+func (u *CustomUser) UnmarshalText(b []byte) error {
+	*u = CustomUser(b)
+	return nil
+}
+
 type Specification struct {
 	Embedded                     `desc:"can we document a struct"`
 	EmbeddedButIgnored           `ignored:"true"`
@@ -70,6 +77,7 @@ type Specification struct {
 	MapField     map[string]string `default:"one:two,three:four"`
 	UrlValue     CustomURL
 	UrlPointer   *CustomURL
+	UserPointer  *CustomUser
 }
 
 type Embedded struct {
@@ -111,6 +119,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_USERPOINTER", "gopher")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -794,7 +803,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()

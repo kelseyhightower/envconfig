@@ -247,20 +247,19 @@ func processField(value string, field reflect.Value) error {
 		return setter.Set(value)
 	}
 
-	if t := textUnmarshaler(field); t != nil {
-		return t.UnmarshalText([]byte(value))
-	}
-
-	if b := binaryUnmarshaler(field); b != nil {
-		return b.UnmarshalBinary([]byte(value))
-	}
-
 	if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 		if field.IsNil() {
 			field.Set(reflect.New(typ))
 		}
 		field = field.Elem()
+	}
+	if t := textUnmarshaler(field); t != nil {
+		return t.UnmarshalText([]byte(value))
+	}
+
+	if b := binaryUnmarshaler(field); b != nil {
+		return b.UnmarshalBinary([]byte(value))
 	}
 
 	switch typ.Kind() {
