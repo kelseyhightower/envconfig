@@ -180,47 +180,54 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	return nil
 }
 
+func (v *varInfo) process() error {
+	// `os.Getenv` cannot differentiate between an explicitly set empty value
+	// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
+	// but it is only available in go1.5 or newer. We're using Go build tags
+	// here to use os.LookupEnv for >=go1.5
+	value, ok := lookupEnv(v.Key)
+	if !ok && v.Alt != "" {
+		value, ok = lookupEnv(v.Alt)
+	}
+
+	def := v.Tags.Get("default")
+	if def != "" && !ok {
+		value = def
+	}
+
+	req := v.Tags.Get("required")
+	if !ok && def == "" {
+		if isTrue(req) {
+			key := v.Key
+			if v.Alt != "" {
+				key = v.Alt
+			}
+			return fmt.Errorf("required key %s missing value", key)
+		}
+		return nil
+	}
+
+	err := processField(value, v.Field)
+	if err != nil {
+		return &ParseError{
+			KeyName:   v.Key,
+			FieldName: v.Name,
+			TypeName:  v.Field.Type().String(),
+			Value:     value,
+			Err:       err,
+		}
+	}
+	return nil
+}
+
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
-
-		// `os.Getenv` cannot differentiate between an explicitly set empty value
-		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
-		// but it is only available in go1.5 or newer. We're using Go build tags
-		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(info.Key)
-		if !ok && info.Alt != "" {
-			value, ok = lookupEnv(info.Alt)
-		}
-
-		def := info.Tags.Get("default")
-		if def != "" && !ok {
-			value = def
-		}
-
-		req := info.Tags.Get("required")
-		if !ok && def == "" {
-			if isTrue(req) {
-				key := info.Key
-				if info.Alt != "" {
-					key = info.Alt
-				}
-				return fmt.Errorf("required key %s missing value", key)
-			}
-			continue
-		}
-
-		err = processField(value, info.Field)
+		err = info.process()
 		if err != nil {
-			return &ParseError{
-				KeyName:   info.Key,
-				FieldName: info.Name,
-				TypeName:  info.Field.Type().String(),
-				Value:     value,
-				Err:       err,
-			}
+			return err
 		}
 	}
 
