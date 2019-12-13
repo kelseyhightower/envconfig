@@ -57,7 +57,6 @@ type Specification struct {
 	NoPrefixWithAlt              string  `envconfig:"SERVICE_HOST"`
 	DefaultVar                   string  `default:"foobar"`
 	RequiredVar                  string  `required:"True"`
-	RequiredToFailVar            string  `required:"True"`
 	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
@@ -377,19 +376,103 @@ func TestRequiredVar(t *testing.T) {
 func TestRequiredMissing(t *testing.T) {
 	var s Specification
 	os.Clearenv()
-	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foobar")
-
+	os.Setenv("ENV_CONFIG_DEBUG", "true")
+	os.Setenv("ENV_CONFIG_PORT", "8080")
+	os.Setenv("ENV_CONFIG_RATE", "0.5")
+	os.Setenv("ENV_CONFIG_USER", "Kelsey")
+	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
+	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
+	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
+	os.Setenv("ENV_CONFIG_EMPTYNUMBERS", "")
+	os.Setenv("ENV_CONFIG_BYTESLICE", "this is a test value")
+	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
+	os.Setenv("SERVICE_HOST", "127.0.0.1")
+	os.Setenv("ENV_CONFIG_TTL", "30")
+	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_OUTER_INNER", "iamnested")
+	os.Setenv("ENV_CONFIG_AFTERNESTED", "after")
+	os.Setenv("ENV_CONFIG_HONOR", "honor")
+	os.Setenv("ENV_CONFIG_DATETIME", "2016-08-16T18:57:05Z")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
+	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
 	err := Process("env_config", &s)
 	if err == nil {
-		t.Error("no failure when missing required variable")
+		t.Errorf("expected error, required field missing")
+	}
+	if s.NoPrefixWithAlt != "" {
+		t.Errorf("expected %v, got %v", "", s.NoPrefixWithAlt)
+	}
+	if s.Debug {
+		t.Errorf("expected %v, got %v", false, s.Debug)
+	}
+	if s.Port != 0 {
+		t.Errorf("expected %d, got %v", 0, s.Port)
+	}
+	if s.Rate != 0.0 {
+		t.Errorf("expected %f, got %v", 0.0, s.Rate)
+	}
+	if s.TTL != 0 {
+		t.Errorf("expected %d, got %v", 0, s.TTL)
+	}
+	if s.User != "" {
+		t.Errorf("expected %s, got %s", "", s.User)
+	}
+	if s.Timeout != 0 {
+		t.Errorf("expected %d, got %s", 0, s.Timeout)
+	}
+	if s.RequiredVar != "" {
+		t.Errorf("expected %s, got %s", "", s.RequiredVar)
+	}
+	if len(s.AdminUsers) != 0 {
+		t.Errorf("expected %#v, got %#v", []string{}, s.AdminUsers)
+	}
+	if len(s.MagicNumbers) != 0 {
+		t.Errorf("expected %#v, got %#v", []int{}, s.MagicNumbers)
+	}
+	if len(s.EmptyNumbers) != 0 {
+		t.Errorf("expected %#v, got %#v", []int{}, s.EmptyNumbers)
+	}
+	if string(s.ByteSlice) != "" {
+		t.Errorf("expected %v, got %v", "", string(s.ByteSlice))
+	}
+	if s.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.Ignored)
 	}
 
-	if s.RequiredVar != "" {
-		t.Error("expected RequiredVar to be empty")
+	if len(s.ColorCodes) != 0 {
+		t.Errorf(
+			"expected %#v, got %#v",
+			map[string]int{},
+			s.ColorCodes,
+		)
 	}
-	if s.RequiredToFailVar != "" {
-		t.Error("expected RequiredToFailVar to be empty")
+
+	if s.NestedSpecification.Property != "" {
+		t.Errorf("expected '%s' string, got %#v", "", s.NestedSpecification.Property)
 	}
+
+	if s.NestedSpecification.PropertyWithDefault != "" {
+		t.Errorf("expected '%s' string, got %#v", "", s.NestedSpecification.PropertyWithDefault)
+	}
+
+	if s.AfterNested != "" {
+		t.Errorf("expected '%s' string, got %#v", "after", s.AfterNested)
+	}
+
+	if s.DecodeStruct.Value != "" {
+		t.Errorf("expected '%s' string, got %#v", "", s.DecodeStruct.Value)
+	}
+
+	if s.MultiWordVarWithAutoSplit != 0 {
+		t.Errorf("expected %q, got %q", 0, s.MultiWordVarWithAutoSplit)
+	}
+
+	if s.MultiWordACRWithAutoSplit != 0 {
+		t.Errorf("expected %d, got %d", 0, s.MultiWordACRWithAutoSplit)
+	}
+
 }
 
 func TestBlankDefaultVar(t *testing.T) {
