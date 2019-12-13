@@ -57,6 +57,7 @@ type Specification struct {
 	NoPrefixWithAlt              string  `envconfig:"SERVICE_HOST"`
 	DefaultVar                   string  `default:"foobar"`
 	RequiredVar                  string  `required:"True"`
+	RequiredToFailVar            string  `required:"True"`
 	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
@@ -376,10 +377,18 @@ func TestRequiredVar(t *testing.T) {
 func TestRequiredMissing(t *testing.T) {
 	var s Specification
 	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foobar")
 
 	err := Process("env_config", &s)
 	if err == nil {
 		t.Error("no failure when missing required variable")
+	}
+
+	if s.RequiredVar != "" {
+		t.Error("expected RequiredVar to be empty")
+	}
+	if s.RequiredToFailVar != "" {
+		t.Error("expected RequiredToFailVar to be empty")
 	}
 }
 
@@ -794,7 +803,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()
