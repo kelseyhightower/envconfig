@@ -265,7 +265,7 @@ func processField(value string, field reflect.Value) error {
 
 	switch typ.Kind() {
 	case reflect.String:
-		field.SetString(value)
+		field.SetString(strings.TrimSpace(value))
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		var (
 			val int64
