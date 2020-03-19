@@ -167,13 +167,12 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 		prefix = strings.ToUpper(prefix) + "_"
 	}
 
-	for _, env := range os.Environ() {
-		if !strings.HasPrefix(env, prefix) {
+	for key := range environment() {
+		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
-		v := strings.SplitN(env, "=", 2)[0]
-		if _, found := vars[v]; !found {
-			return fmt.Errorf("unknown environment variable %s", v)
+		if _, found := vars[key]; !found {
+			return fmt.Errorf("unknown environment variable %s", key)
 		}
 	}
 
@@ -184,15 +183,12 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 func Process(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
 
-	for _, info := range infos {
+	env := environment()
 
-		// `os.Getenv` cannot differentiate between an explicitly set empty value
-		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
-		// but it is only available in go1.5 or newer. We're using Go build tags
-		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(info.Key)
+	for _, info := range infos {
+		value, ok := env[info.Key]
 		if !ok && info.Alt != "" {
-			value, ok = lookupEnv(info.Alt)
+			value, ok = env[info.Alt]
 		}
 
 		def := info.Tags.Get("default")
@@ -379,4 +375,18 @@ func binaryUnmarshaler(field reflect.Value) (b encoding.BinaryUnmarshaler) {
 func isTrue(s string) bool {
 	b, _ := strconv.ParseBool(s)
 	return b
+}
+
+func environment() map[string]string {
+	environ := os.Environ()
+	vars := make(map[string]string, len(environ))
+	for _, env := range os.Environ() {
+		split := strings.SplitN(env, "=", 2)
+		var v string
+		if len(split) > 1 {
+			v = split[1]
+		}
+		vars[split[0]] = v
+	}
+	return vars
 }
