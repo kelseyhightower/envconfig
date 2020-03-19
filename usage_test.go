@@ -69,6 +69,10 @@ func compareUsage(want, got string, t *testing.T) {
 	}
 }
 
+type Recursive struct {
+	Recursive *Recursive
+}
+
 func TestUsageDefault(t *testing.T) {
 	var s Specification
 	os.Clearenv()

@@ -155,7 +155,7 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 // Usaget writes usage information to the specified io.Writer using the specified template
 func Usaget(prefix string, spec interface{}, out io.Writer, tmpl *template.Template) error {
 	// gather first
-	infos, err := gatherInfo(prefix, spec)
+	infos, err := gatherInfoForUsage(prefix, spec)
 	if err != nil {
 		return err
 	}

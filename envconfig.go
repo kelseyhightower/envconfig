@@ -57,8 +57,16 @@ type varInfo struct {
 	Tags  reflect.StructTag
 }
 
-// GatherInfo gathers information about the specified struct
-func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
+func gatherInfoForUsage(prefix string, spec interface{}) ([]varInfo, error) {
+	return gatherInfo(prefix, spec, map[string]string{}, false, true)
+}
+
+func gatherInfoForProcessing(prefix string, spec interface{}, env map[string]string) ([]varInfo, error) {
+	return gatherInfo(prefix, spec, env, false, false)
+}
+
+// gatherInfo gathers information about the specified struct, use gatherInfoForUsage or gatherInfoForProcessing for calling it
+func gatherInfo(prefix string, spec interface{}, env map[string]string, isInsideStructSlice, forUsage bool) ([]varInfo, error) {
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -120,30 +128,79 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 		}
 		if info.Alt != "" {
 			info.Key = info.Alt
+			if isInsideStructSlice {
+				// we don't want this to be read, since we're inside of a struct slice,
+				// each slice element will have same Alt and thus they would overwrite themselves
+				info.Alt = ""
+			}
 		}
 		if prefix != "" {
 			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
 		}
 		info.Key = strings.ToUpper(info.Key)
-		infos = append(infos, info)
 
-		if f.Kind() == reflect.Struct {
-			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
-				innerPrefix := prefix
-				if !ftype.Anonymous {
-					innerPrefix = info.Key
+		if decoderFrom(f) != nil || setterFrom(f) != nil || textUnmarshaler(f) != nil || binaryUnmarshaler(f) != nil {
+			// there's a decoder defined, no further processing needed
+			infos = append(infos, info)
+		} else if f.Kind() == reflect.Struct {
+			// it's a struct without a specific decoder set
+			innerPrefix := prefix
+			if !ftype.Anonymous {
+				innerPrefix = info.Key
+			}
+
+			embeddedPtr := f.Addr().Interface()
+			embeddedInfos, err := gatherInfo(innerPrefix, embeddedPtr, env, isInsideStructSlice, forUsage)
+			if err != nil {
+				return nil, err
+			}
+			infos = append(infos, embeddedInfos...)
+		} else if arePointers := isSliceOfStructPtrs(f); arePointers || isSliceOfStructs(f) {
+			// it's a slice of structs
+			var (
+				l            int
+				prefixFormat prefixFormatter
+			)
+			if forUsage {
+				// it's just for usage so we don't know how many of them can be out there
+				// so we'll print one info with a generic [N] index
+				l = 1
+				prefixFormat = usagePrefix{info.Key, "[N]"}
+			} else {
+				var err error
+				// let's find out how many are defined by the env vars, and gather info of each one of them
+				if l, err = sliceLen(info.Key, env); err != nil {
+					return nil, err
+				}
+				prefixFormat = processPrefix(info.Key)
+				// if no keys, check the alternative keys, unless we're inside of a slice
+				if l == 0 && info.Alt != "" && !isInsideStructSlice {
+					if l, err = sliceLen(info.Alt, env); err != nil {
+						return nil, err
+					}
+					prefixFormat = processPrefix(info.Alt)
+				}
+			}
+
+			f.Set(reflect.MakeSlice(f.Type(), l, l))
+			for i := 0; i < l; i++ {
+				var structPtrValue reflect.Value
+
+				if arePointers {
+					f.Index(i).Set(reflect.New(f.Type().Elem().Elem()))
+					structPtrValue = f.Index(i)
+				} else {
+					structPtrValue = f.Index(i).Addr()
 				}
 
-				embeddedPtr := f.Addr().Interface()
-				embeddedInfos, err := gatherInfo(innerPrefix, embeddedPtr)
+				embeddedInfos, err := gatherInfo(prefixFormat.format(i), structPtrValue.Interface(), env, true, forUsage)
 				if err != nil {
 					return nil, err
 				}
-				infos = append(infos[:len(infos)-1], embeddedInfos...)
-
-				continue
+				infos = append(infos, embeddedInfos...)
 			}
+		} else {
+			infos = append(infos, info)
 		}
 	}
 	return infos, nil
@@ -153,7 +210,8 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 // that we don't know how or want to parse. This is likely only meaningful with
 // a non-empty prefix.
 func CheckDisallowed(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
+	env := environment()
+	infos, err := gatherInfoForProcessing(prefix, spec, env)
 	if err != nil {
 		return err
 	}
@@ -167,7 +225,7 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 		prefix = strings.ToUpper(prefix) + "_"
 	}
 
-	for key := range environment() {
+	for key := range env {
 		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
@@ -181,9 +239,8 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
-
 	env := environment()
+	infos, err := gatherInfoForProcessing(prefix, spec, env)
 
 	for _, info := range infos {
 		value, ok := env[info.Key]
@@ -377,6 +434,53 @@ func isTrue(s string) bool {
 	return b
 }
 
+// sliceLen returns the len of a slice of structs defined in the environment config
+func sliceLen(prefix string, env map[string]string) (int, error) {
+	prefix = prefix + "_"
+	indexes := map[int]bool{}
+	for k := range env {
+		if !strings.HasPrefix(k, prefix) {
+			continue
+		}
+		var digits string
+		for i := len(prefix); i < len(k); i++ {
+			if k[i] >= '0' && k[i] <= '9' {
+				digits += k[i : i+1]
+			} else if k[i] == '_' {
+				break
+			} else {
+				return 0, fmt.Errorf("key %s has prefix %s but doesn't follow an integer value followed by an underscore (unexpected char %q)", k, prefix, k[i])
+			}
+		}
+		if digits == "" {
+			return 0, fmt.Errorf("key %s has prefix %s but doesn't follow an integer value followed by an underscore (no digits found)", k, prefix)
+		}
+		index, err := strconv.Atoi(digits)
+		if err != nil {
+			return 0, fmt.Errorf("can't parse index in %s: %s", k, err)
+		}
+		indexes[index] = true
+	}
+
+	for i := 0; i < len(indexes); i++ {
+		if _, ok := indexes[i]; !ok {
+			return 0, fmt.Errorf("prefix %s defines %d indexes, but index %d is unset: indexes must start at 0 and be consecutive", prefix, len(indexes), i)
+		}
+	}
+	return len(indexes), nil
+}
+
+func isSliceOfStructs(v reflect.Value) bool {
+	return v.Kind() == reflect.Slice &&
+		v.Type().Elem().Kind() == reflect.Struct
+}
+
+func isSliceOfStructPtrs(v reflect.Value) bool {
+	return v.Kind() == reflect.Slice &&
+		v.Type().Elem().Kind() == reflect.Ptr &&
+		v.Type().Elem().Elem().Kind() == reflect.Struct
+}
+
 func environment() map[string]string {
 	environ := os.Environ()
 	vars := make(map[string]string, len(environ))
@@ -390,3 +494,13 @@ func environment() map[string]string {
 	}
 	return vars
 }
+
+type prefixFormatter interface{ format(v interface{}) string }
+
+type usagePrefix struct{ prefix, placeholder string }
+
+func (p usagePrefix) format(v interface{}) string { return p.prefix + "_" + p.placeholder }
+
+type processPrefix string
+
+func (p processPrefix) format(v interface{}) string { return fmt.Sprintf(string(p)+"_%d", v) }

@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/kelseyhightower/envconfig.svg)](https://travis-ci.org/kelseyhightower/envconfig)
 
-```Go
+```go
 import "github.com/kelseyhightower/envconfig"
 ```
 
@@ -14,7 +14,7 @@ See [godoc](http://godoc.org/github.com/kelseyhightower/envconfig)
 
 Set some environment variables:
 
-```Bash
+```bash
 export MYAPP_DEBUG=false
 export MYAPP_PORT=8080
 export MYAPP_USER=Kelsey
@@ -22,58 +22,67 @@ export MYAPP_RATE="0.5"
 export MYAPP_TIMEOUT="3m"
 export MYAPP_USERS="rob,ken,robert"
 export MYAPP_COLORCODES="red:1,green:2,blue:3"
+export MYAPP_DB_0_HOST="mysql-1.default"
+export MYAPP_DB_1_HOST="mysql-2.default"
 ```
 
 Write some code:
 
-```Go
-package main
-
+```go
 import (
-    "fmt"
-    "log"
-    "time"
+	"fmt"
+	"log"
+	"time"
 
-    "github.com/kelseyhightower/envconfig"
+	"github.com/kelseyhightower/envconfig"
 )
 
 type Specification struct {
-    Debug       bool
-    Port        int
-    User        string
-    Users       []string
-    Rate        float32
-    Timeout     time.Duration
-    ColorCodes  map[string]int
+	Debug      bool
+	Port       int
+	User       string
+	Users      []string
+	Rate       float32
+	Timeout    time.Duration
+	ColorCodes map[string]int
+	DB         []struct {
+		Host string
+		Port int `default:"3306"`
+	}
 }
 
 func main() {
-    var s Specification
-    err := envconfig.Process("myapp", &s)
-    if err != nil {
-        log.Fatal(err.Error())
-    }
-    format := "Debug: %v\nPort: %d\nUser: %s\nRate: %f\nTimeout: %s\n"
-    _, err = fmt.Printf(format, s.Debug, s.Port, s.User, s.Rate, s.Timeout)
-    if err != nil {
-        log.Fatal(err.Error())
-    }
+	var s Specification
+	err := envconfig.Process("myapp", &s)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	format := "Debug: %v\nPort: %d\nUser: %s\nRate: %f\nTimeout: %s\n"
+	_, err = fmt.Printf(format, s.Debug, s.Port, s.User, s.Rate, s.Timeout)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
-    fmt.Println("Users:")
-    for _, u := range s.Users {
-        fmt.Printf("  %s\n", u)
-    }
+	fmt.Println("Users:")
+	for _, u := range s.Users {
+		fmt.Printf("  %s\n", u)
+	}
 
-    fmt.Println("Color codes:")
-    for k, v := range s.ColorCodes {
-        fmt.Printf("  %s: %d\n", k, v)
-    }
+	fmt.Println("Color codes:")
+	for k, v := range s.ColorCodes {
+		fmt.Printf("  %s: %d\n", k, v)
+	}
+
+	fmt.Println("Databases:")
+	for i, db := range s.DB {
+		fmt.Printf("  %d: %s:%d\n", i, db.Host, db.Port)
+	}
 }
 ```
 
 Results:
 
-```Bash
+```bash
 Debug: false
 Port: 8080
 User: Kelsey
@@ -84,9 +93,12 @@ Users:
   ken
   robert
 Color codes:
-  red: 1
   green: 2
   blue: 3
+  red: 1
+Databases:
+  0: mysql-1.default:3306
+  1: mysql-2.default:3306
 ```
 
 ## Struct Tag Support
@@ -96,14 +108,14 @@ environment variables.
 
 For example, consider the following struct:
 
-```Go
+```go
 type Specification struct {
-    ManualOverride1 string `envconfig:"manual_override_1"`
-    DefaultVar      string `default:"foobar"`
-    RequiredVar     string `required:"true"`
-    IgnoredVar      string `ignored:"true"`
-    AutoSplitVar    string `split_words:"true"`
-    RequiredAndAutoSplitVar    string `required:"true" split_words:"true"`
+	ManualOverride1         string `envconfig:"manual_override_1"`
+	DefaultVar              string `default:"foobar"`
+	RequiredVar             string `required:"true"`
+	IgnoredVar              string `ignored:"true"`
+	AutoSplitVar            string `split_words:"true"`
+	RequiredAndAutoSplitVar string `required:"true" split_words:"true"`
 }
 ```
 
@@ -119,7 +131,7 @@ value for `MYAPP_MANUAL_OVERRIDE_1`. Without this struct tag, it would have
 instead looked up `MYAPP_MANUALOVERRIDE1`. With the `split_words:"true"` tag
 it would have looked up `MYAPP_MANUAL_OVERRIDE1`.
 
-```Bash
+```bash
 export MYAPP_MANUAL_OVERRIDE_1="this will be the value"
 
 # export MYAPP_MANUALOVERRIDE1="and this will not"
@@ -136,14 +148,15 @@ If envconfig can't find an environment variable in the form `PREFIX_MYVAR`, and 
 is a struct tag defined, it will try to populate your variable with an environment
 variable that directly matches the envconfig tag in your struct definition:
 
-```shell
+```bash
 export SERVICE_HOST=127.0.0.1
 export MYAPP_DEBUG=true
 ```
-```Go
+
+```go
 type Specification struct {
-    ServiceHost string `envconfig:"SERVICE_HOST"`
-    Debug       bool
+	ServiceHost string `envconfig:"SERVICE_HOST"`
+	Debug       bool
 }
 ```
 
@@ -158,33 +171,100 @@ envconfig supports these struct field types:
   * int8, int16, int32, int64
   * bool
   * float32, float64
-  * slices of any supported type
-  * maps (keys and values of any supported type)
+  * structs
+  * slices of any supported type, including structs
+  * maps (keys and values of any supported type), except structs
   * [encoding.TextUnmarshaler](https://golang.org/pkg/encoding/#TextUnmarshaler)
   * [encoding.BinaryUnmarshaler](https://golang.org/pkg/encoding/#BinaryUnmarshaler)
   * [time.Duration](https://golang.org/pkg/time/#Duration)
 
 Embedded structs using these fields are also supported.
 
+## Slices of structs
+
+Envconfig supports slices of structs in the following form:
+
+```bash
+export MYAPP_INNER_0_VALUE=hello
+export MYAPP_INNER_1_VALUE=world
+```
+
+```go
+type Specification struct {
+	Inner []struct {
+		Value string
+	}
+}
+```
+
+The slice itself can be tagged with `envconfig` tag and works in the usual way, 
+however, `envconfig` tag will be used only to overwrite the key name and won't be 
+used to fill the value from a matching non-prefixed global variable (because all the 
+slice elements share the same tag)
+
+For example:
+
+```bash
+export MYAPP_ALTERNATIVE_0_KEY=hello
+export MYAPP_ALTERNATIVE_1_KEY=world
+```
+
+```go
+type Specification struct {
+	Inner []struct {
+		Value string `envconfig:"key"`
+	} `envconfig:"alternative"`
+}
+```
+
+and:
+
+```bash
+export ALTERNATIVE_0_KEY=hello
+export ALTERNATIVE_1_KEY=world
+```
+
+```go
+type Specification struct {
+	Inner []struct {
+		Value string `envconfig:"key"`
+	} `envconfig:"alternative"`
+}
+```
+
+But in the following example, KEY will be ignored, although it's an unprefixed version of an `envconfig` tag:
+```bash
+export KEY=THIS_WILL_BE_IGNORED
+```
+
+```go
+type IgnoredTagSpecification struct {
+	Inner []struct {
+		Value string `envconfig:"key"`
+	}
+}
+```
+
+
 ## Custom Decoders
 
 Any field whose type (or pointer-to-type) implements `envconfig.Decoder` can
 control its own deserialization:
 
-```Bash
+```bash
 export DNS_SERVER=8.8.8.8
 ```
 
-```Go
+```go
 type IPDecoder net.IP
 
 func (ipd *IPDecoder) Decode(value string) error {
-    *ipd = IPDecoder(net.ParseIP(value))
-    return nil
+	*ipd = IPDecoder(net.ParseIP(value))
+	return nil
 }
 
 type DNSConfig struct {
-    Address IPDecoder `envconfig:"DNS_SERVER"`
+	Address IPDecoder `envconfig:"DNS_SERVER"`
 }
 ```
 

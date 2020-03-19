@@ -70,6 +70,15 @@ type Specification struct {
 	MapField     map[string]string `default:"one:two,three:four"`
 	UrlValue     CustomURL
 	UrlPointer   *CustomURL
+	StructSlice  []struct {
+		Property string
+	}
+	StructReferenceSlice []*struct {
+		Property string
+	}
+	UnsetStructSlice []struct {
+		Property string
+	}
 }
 
 type Embedded struct {
@@ -111,6 +120,12 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_0_PROPERTY", "zero")
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_1_PROPERTY", "one")
+	os.Setenv("ENV_CONFIG_STRUCTREFERENCESLICE_0_PROPERTY", "ref-zero")
+	os.Setenv("ENV_CONFIG_STRUCTREFERENCESLICE_1_PROPERTY", "ref-one")
+	os.Setenv("ENV_CONFIG_STRUCTREFERENCESLICE_2_PROPERTY", "ref-two")
+
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -216,6 +231,33 @@ func TestProcess(t *testing.T) {
 
 	if *s.UrlPointer.Value != *u {
 		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
+	}
+
+	if len(s.StructSlice) != 2 {
+		t.Fatalf("s.StructSlice should have len 2, but has len %d", len(s.StructSlice))
+	}
+	if s.StructSlice[0].Property != "zero" {
+		t.Errorf("expected s.StructSlice[0].Property to be 'zero', got %q", s.StructSlice[0].Property)
+	}
+	if s.StructSlice[1].Property != "one" {
+		t.Errorf("expected s.StructSlice[1].Property to be 'zero', got %q", s.StructSlice[1].Property)
+	}
+
+	if len(s.StructReferenceSlice) != 3 {
+		t.Fatalf("s.StructReferenceSlice should have len 3, but has len %d", len(s.StructReferenceSlice))
+	}
+	if s.StructReferenceSlice[0].Property != "ref-zero" {
+		t.Errorf("expected s.StructReferenceSlice[0].Property to be 'ref-zero', got %q", s.StructReferenceSlice[0].Property)
+	}
+	if s.StructReferenceSlice[1].Property != "ref-one" {
+		t.Errorf("expected s.StructReferenceSlice[1].Property to be 'ref-one', got %q", s.StructReferenceSlice[1].Property)
+	}
+	if s.StructReferenceSlice[2].Property != "ref-two" {
+		t.Errorf("expected s.StructReferenceSlice[2].Property to be 'ref-two', got %q", s.StructReferenceSlice[2].Property)
+	}
+
+	if len(s.UnsetStructSlice) > 0 {
+		t.Errorf("expected s.UnsetStructSlice to be empty, got %d elements", len(s.UnsetStructSlice))
 	}
 }
 
@@ -591,6 +633,166 @@ func TestNonPointerFailsProperly(t *testing.T) {
 	}
 }
 
+func TestStructSliceNonDigitVariable(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_X_PROPERTY", "broken")
+
+	err := Process("env_config", &s)
+	if err == nil {
+		t.Fatalf("should have failed")
+	}
+	const expectedError = "key ENV_CONFIG_STRUCTSLICE_X_PROPERTY has prefix ENV_CONFIG_STRUCTSLICE_ but doesn't follow an integer value followed by an underscore (unexpected char 'X')"
+	if err.Error() != expectedError {
+		t.Errorf("wrong slice should fail with: \n%q\ngot instead\n%q", expectedError, err)
+	}
+}
+
+func TestStructSliceUnexpectedUnderscore(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_STRUCTSLICE__PROPERTY", "broken")
+
+	err := Process("env_config", &s)
+	if err == nil {
+		t.Fatalf("should have failed")
+	}
+	const expectedError = "key ENV_CONFIG_STRUCTSLICE__PROPERTY has prefix ENV_CONFIG_STRUCTSLICE_ but doesn't follow an integer value followed by an underscore (no digits found)"
+	if err.Error() != expectedError {
+		t.Errorf("wrong slice should fail with: \n%q\ngot instead\n%q", expectedError, err)
+	}
+}
+
+func TestStructSliceNonIntegerIndex(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_1000000000000000000000000000_PROPERTY", "broken")
+
+	err := Process("env_config", &s)
+	if err == nil {
+		t.Fatalf("should have failed")
+	}
+	const expectedError = "can't parse index in ENV_CONFIG_STRUCTSLICE_1000000000000000000000000000_PROPERTY: strconv.Atoi: parsing \"1000000000000000000000000000\": value out of range"
+	if err.Error() != expectedError {
+		t.Errorf("wrong slice should fail with: \n%q\ngot instead\n%q", expectedError, err)
+	}
+}
+
+func TestStructSliceMissingIndex(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_1_PROPERTY", "broken")
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_2_PROPERTY", "broken")
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_3_PROPERTY", "broken")
+
+	err := Process("env_config", &s)
+	if err == nil {
+		t.Fatalf("should have failed")
+	}
+	const expectedError = "prefix ENV_CONFIG_STRUCTSLICE_ defines 3 indexes, but index 0 is unset: indexes must start at 0 and be consecutive"
+	if err.Error() != expectedError {
+		t.Errorf("wrong slice should fail with: \n%q\ngot instead\n%q", expectedError, err)
+	}
+}
+
+func TestStructSliceHasRequiredValue(t *testing.T) {
+	var s struct {
+		StructSlice []struct {
+			Optional string
+			Required string `required:"true"`
+		}
+	}
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_0_OPTIONAL", "value")
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_0_REQUIRED", "value")
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_1_OPTIONAL", "value")
+
+	err := Process("env_config", &s)
+	if err == nil {
+		t.Fatalf("should have failed")
+	}
+	const expectedError = "required key ENV_CONFIG_STRUCTSLICE_1_REQUIRED missing value"
+	if err.Error() != expectedError {
+		t.Errorf("wrong slice should fail with: \n%q\ngot instead\n%q", expectedError, err)
+	}
+}
+
+func TestStructSliceAlternativeKeyIgnoredBecauseMainIsPresent(t *testing.T) {
+	var s struct {
+		StructSlice []struct {
+			Property string
+		} `envconfig:"alternative"`
+	}
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_ALTERNATIVE_0_PROPERTY", "main")
+	os.Setenv("ALTERNATIVE_0_PROPERTY", "alt")
+	os.Setenv("ALTERNATIVE_1_PROPERTY", "alt")
+
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if len(s.StructSlice) != 1 {
+		t.Fatalf("expected len 1 on s.StructSlice, got %d", len(s.StructSlice))
+	}
+	if s.StructSlice[0].Property != "main" {
+		t.Errorf("expected s.StructSlice[0].Property to be %q, got %q", "main", s.StructSlice[0])
+	}
+}
+
+func TestStructSliceAlternativeKeyIsUsed(t *testing.T) {
+	var s struct {
+		StructSlice []struct {
+			Property string
+		} `envconfig:"alternative"`
+		Main string
+	}
+	os.Clearenv()
+	os.Setenv("ALTERNATIVE_0_PROPERTY", "alt")
+	os.Setenv("ALTERNATIVE_1_PROPERTY", "alt2")
+	os.Setenv("ENV_CONFIG_MAIN", "main")
+
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if len(s.StructSlice) != 2 {
+		t.Fatalf("expected len 2 on s.StructSlice, got %d", len(s.StructSlice))
+	}
+	if s.StructSlice[0].Property != "alt" {
+		t.Errorf("expected s.StructSlice[0].Property to be %q, got %q", "alt", s.StructSlice[0].Property)
+	}
+	if s.Main != "main" {
+		t.Errorf("expected s.Main to be %q, got %q", "main", s.Main)
+	}
+}
+
+func TestStructSliceAlternativeKeyIsNotUsedInsideOfSlice(t *testing.T) {
+	var s struct {
+		StructSlice []struct {
+			Property string
+			Alt      string `envconfig:"alternative"`
+		}
+	}
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_0_PROPERTY", "prop")
+	os.Setenv("ALTERNATIVE", "ignored")
+
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if len(s.StructSlice) != 1 {
+		t.Fatalf("expected len 1 on s.StructSlice, got %d", len(s.StructSlice))
+	}
+	if s.StructSlice[0].Property != "prop" {
+		t.Errorf("expected s.StructSlice[0].Property to be %q, got %q", "prop", s.StructSlice[0].Property)
+	}
+	if s.StructSlice[0].Alt != "" {
+		t.Errorf("expected s.StructSlice[0].Property to be %q, got %q", "", s.StructSlice[0].Property)
+	}
+}
+
 func TestCustomValueFields(t *testing.T) {
 	var s struct {
 		Foo    string
@@ -764,6 +966,7 @@ func TestCheckDisallowedOnlyAllowed(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_DEBUG", "true")
 	os.Setenv("UNRELATED_ENV_VAR", "true")
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_0_PROPERTY", "hello world")
 	err := CheckDisallowed("env_config", &s)
 	if err != nil {
 		t.Errorf("expected no error, got %s", err)
@@ -859,6 +1062,6 @@ func BenchmarkGatherInfo(b *testing.B) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
 	for i := 0; i < b.N; i++ {
 		var s Specification
-		gatherInfo("env_config", &s)
+		gatherInfoForProcessing("env_config", &s, environment())
 	}
 }
