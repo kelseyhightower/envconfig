@@ -695,6 +695,45 @@ func TestStructSliceMissingIndex(t *testing.T) {
 	}
 }
 
+func TestStructSliceEmpty(t *testing.T) {
+	var s struct {
+		StructSlice []struct {
+			Optional string
+		}
+	}
+	os.Clearenv()
+
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Fatalf("should not fail")
+	}
+	if len(s.StructSlice) > 0 {
+		t.Errorf("should be empty, got len %d", len(s.StructSlice))
+	}
+}
+
+func TestStructSliceDefaultValue(t *testing.T) {
+	var s struct {
+		StructSlice []struct {
+			Optional string
+			Default  string `default:"default"`
+		}
+	}
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_STRUCTSLICE_0_OPTIONAL", "value")
+
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Fatalf("should not fail")
+	}
+	if len(s.StructSlice) != 1 {
+		t.Fatalf("should have len 1, got %d", len(s.StructSlice))
+	}
+	if s.StructSlice[0].Default != "default" {
+		t.Errorf("default value should be 'default', got %q", s.StructSlice[0].Default)
+	}
+}
+
 func TestStructSliceHasRequiredValue(t *testing.T) {
 	var s struct {
 		StructSlice []struct {
