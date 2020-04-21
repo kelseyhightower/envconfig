@@ -157,3 +157,20 @@ func TestUsageBadFormat(t *testing.T) {
 	}
 	compareUsage(testUsageBadFormatResult, buf.String(), t)
 }
+
+func TestUsageDoesNotModifyStructSlice(t *testing.T) {
+	var s struct {
+		StructSlice []struct {
+			Optional string
+		}
+	}
+	os.Clearenv()
+
+	err := Usagef("env_config", &s, ioutil.Discard, DefaultTableFormat)
+	if err != nil {
+		t.Fatalf("should not fail")
+	}
+	if len(s.StructSlice) > 0 {
+		t.Errorf("should be empty, got len %d", len(s.StructSlice))
+	}
+}
