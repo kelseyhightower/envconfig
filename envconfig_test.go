@@ -7,6 +7,7 @@ package envconfig
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -70,6 +71,7 @@ type Specification struct {
 	MapField     map[string]string `default:"one:two,three:four"`
 	UrlValue     CustomURL
 	UrlPointer   *CustomURL
+	IPValue      net.IP
 }
 
 type Embedded struct {
@@ -111,6 +113,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_IPVALUE", "1.1.1.1")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -216,6 +219,11 @@ func TestProcess(t *testing.T) {
 
 	if *s.UrlPointer.Value != *u {
 		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
+	}
+
+	ip := net.ParseIP("1.1.1.1")
+	if !s.IPValue.Equal(ip) {
+		t.Errorf("expected %q, got %q",ip,s.IPValue)
 	}
 }
 
