@@ -55,7 +55,6 @@ type varInfo struct {
 	Key   string
 	Field reflect.Value
 	Tags  reflect.StructTag
-	Base  interface{}
 }
 
 // GatherInfo gathers information about the specified struct
