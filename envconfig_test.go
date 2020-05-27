@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 type HonorDecodeInStruct struct {
@@ -794,7 +796,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()
@@ -806,6 +808,61 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 
 	if !strings.Contains(err.Error(), " BAR ") {
 		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
+	}
+}
+
+type SlimSpecification struct {
+	Label   string `default:"foo" required`
+	Enabled bool   `default:"true"`
+	Nested  struct {
+		Duration time.Duration `default:"1ns"`
+	}
+}
+
+func TestOverlay(t *testing.T) {
+	testCases := []struct {
+		desc, prefix string
+		env          map[string]string
+		s, want      *SlimSpecification
+		wantErr      error
+	}{
+		{"preserve enabled from spec", "env_config", map[string]string{"ENV_CONFIG_LABEL": "bar", "ENV_CONFIG_NESTED_DURATION": "1ms"}, &SlimSpecification{Enabled: true}, newSlimSpec("bar", true, 1*time.Millisecond), nil},
+		{"overlay label from environment on top of spec", "env_config", map[string]string{"ENV_CONFIG_LABEL": "bar"}, &SlimSpecification{Label: "goofy"}, newSlimSpec("bar", true, 1*time.Nanosecond), nil},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			os.Clearenv()
+			mustRegisterEnv(t, tC.desc, tC.env)
+
+			err := Overlay(tC.prefix, tC.s)
+			if diff := cmp.Diff(&tC.s, &tC.want); diff != "" || err != tC.wantErr {
+				t.Errorf("Overlay(\"%s\",%T)=%v (err=%v); got=%v; error=%v", tC.prefix, tC.s, tC.want, tC.wantErr, tC.s, err)
+			}
+		})
+	}
+}
+
+func isNestedDurationIn(s SlimSpecification, d time.Duration) bool {
+	return s.Nested == struct {
+		Duration time.Duration `default:"1ns"`
+	}{Duration: d}
+}
+
+func mustRegisterEnv(t *testing.T, desc string, env map[string]string) {
+	for key, value := range env {
+		if err := os.Setenv(key, value); err != nil {
+			t.Fatalf("aborting %s because environment variable (%s=%s) cannot be set", desc, key, value)
+		}
+	}
+}
+
+func newSlimSpec(label string, enabled bool, d time.Duration) *SlimSpecification {
+	return &SlimSpecification{
+		Label:   label,
+		Enabled: enabled,
+		Nested: struct {
+			Duration time.Duration `default:"1ns"`
+		}{Duration: d},
 	}
 }
 

@@ -55,6 +55,7 @@ type varInfo struct {
 	Key   string
 	Field reflect.Value
 	Tags  reflect.StructTag
+	Base  interface{}
 }
 
 // GatherInfo gathers information about the specified struct
@@ -182,6 +183,10 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
+	return baseProcess(prefix, spec, false)
+}
+
+func baseProcess(prefix string, spec interface{}, preserveCurrentValues bool) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -202,6 +207,10 @@ func Process(prefix string, spec interface{}) error {
 
 		req := info.Tags.Get("required")
 		if !ok && def == "" {
+			// Skip processing field when value exists and no environment value exists
+			if !ok && preserveCurrentValues {
+				continue
+			}
 			if isTrue(req) {
 				key := info.Key
 				if info.Alt != "" {
@@ -232,6 +241,12 @@ func MustProcess(prefix string, spec interface{}) {
 	if err := Process(prefix, spec); err != nil {
 		panic(err)
 	}
+}
+
+// Overlay will replace any field in base that is found in the environment
+//
+func Overlay(prefix string, spec interface{}) error {
+	return baseProcess(prefix, spec, true)
 }
 
 func processField(value string, field reflect.Value) error {
