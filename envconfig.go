@@ -243,9 +243,16 @@ func MustProcess(prefix string, spec interface{}) {
 }
 
 // Overlay will replace any field in base that is found in the environment
-//
+// Value precedence moves from environment -> struct -> defaults
 func Overlay(prefix string, spec interface{}) error {
 	return processOrOverlay(prefix, spec, true)
+}
+
+// MustOverlay attempts to Overlay and panics if an error occurs
+func MustOverlay(prefix string, spec interface{}) {
+	if err := Overlay(prefix, spec); err != nil {
+		panic(err)
+	}
 }
 
 func processField(value string, field reflect.Value) error {
