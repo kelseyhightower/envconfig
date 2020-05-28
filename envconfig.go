@@ -182,10 +182,10 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
-	return baseProcess(prefix, spec, false)
+	return processOrOverlay(prefix, spec, false)
 }
 
-func baseProcess(prefix string, spec interface{}, preserveCurrentValues bool) error {
+func processOrOverlay(prefix string, spec interface{}, overlay bool) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -199,6 +199,10 @@ func baseProcess(prefix string, spec interface{}, preserveCurrentValues bool) er
 			value, ok = lookupEnv(info.Alt)
 		}
 
+		if !ok && overlay && !info.Field.IsZero() {
+			continue
+		}
+
 		def := info.Tags.Get("default")
 		if def != "" && !ok {
 			value = def
@@ -206,10 +210,6 @@ func baseProcess(prefix string, spec interface{}, preserveCurrentValues bool) er
 
 		req := info.Tags.Get("required")
 		if !ok && def == "" {
-			// Skip processing field when value exists and no environment value exists
-			if !ok && preserveCurrentValues {
-				continue
-			}
 			if isTrue(req) {
 				key := info.Key
 				if info.Alt != "" {
@@ -245,7 +245,7 @@ func MustProcess(prefix string, spec interface{}) {
 // Overlay will replace any field in base that is found in the environment
 //
 func Overlay(prefix string, spec interface{}) error {
-	return baseProcess(prefix, spec, true)
+	return processOrOverlay(prefix, spec, true)
 }
 
 func processField(value string, field reflect.Value) error {
