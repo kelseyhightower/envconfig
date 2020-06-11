@@ -829,10 +829,10 @@ func TestOverlay(t *testing.T) {
 		s, want      *SlimSpecification
 		wantErr      error
 	}{
-		{"preserve enabled from spec", "env_config", newEnvironment("ENV_CONFIG_LABEL:bar", "ENV_CONFIG_NESTED_DURATION:1ms", "ENV_CONFIG_HITTHRESHOLD:1"), &SlimSpecification{Enabled: true}, newSlimSpec("bar", true, NestedDuration{1 * time.Millisecond}, 1), nil},
-		{"overlay label from environment on top of spec", "env_config", newEnvironment("ENV_CONFIG_LABEL:bar", "ENV_CONFIG_HITTHRESHOLD:1"), &SlimSpecification{Label: "goofy"}, newSlimSpec("bar", true, NestedDuration{1 * time.Nanosecond}, 1), nil},
-		{"required hitThreshold value from base", "env_config", newEnvironment(), &SlimSpecification{HitThreshold: 1}, newSlimSpec("foo", true, NestedDuration{1 * time.Nanosecond}, 1), nil},
-		{"missing required hitThreshold value fails", "env_config", newEnvironment(), &SlimSpecification{}, newSlimSpec("foo", true, NestedDuration{}, 0), fmt.Errorf("required key %s missing value", "ENV_CONFIG_HITTHRESHOLD")},
+		{"preserve enabled from spec", "env_config", map[string]string{"ENV_CONFIG_LABEL": "bar", "ENV_CONFIG_NESTED_DURATION": "1ms", "ENV_CONFIG_HITTHRESHOLD": "1"}, &SlimSpecification{Enabled: true}, &SlimSpecification{"bar", true, 1, NestedDuration{1 * time.Millisecond}}, nil},
+		{"overlay label from environment on top of spec", "env_config", map[string]string{"ENV_CONFIG_LABEL": "bar", "ENV_CONFIG_HITTHRESHOLD": "1"}, &SlimSpecification{Label: "goofy"}, &SlimSpecification{"bar", true, 1, NestedDuration{1 * time.Nanosecond}}, nil},
+		{"required hitThreshold value from base", "env_config", map[string]string{}, &SlimSpecification{HitThreshold: 1}, &SlimSpecification{"foo", true, 1, NestedDuration{1 * time.Nanosecond}}, nil},
+		{"missing required hitThreshold value fails", "env_config", map[string]string{}, &SlimSpecification{}, &SlimSpecification{"foo", true, 0, NestedDuration{}}, fmt.Errorf("required key %s missing value", "ENV_CONFIG_HITTHRESHOLD")},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
@@ -847,39 +847,11 @@ func TestOverlay(t *testing.T) {
 	}
 }
 
-// newEnvironment converts a variable number of encoded key and value pairs into a map of keys to values.
-// Separator expected to be ':'.
-func newEnvironment(keyValues ...string) map[string]string {
-	m := make(map[string]string, 0)
-	for _, pair := range keyValues {
-		keyAndValue := strings.Split(pair, ":")
-		if len(keyAndValue) != 2 {
-			fmt.Printf("unparsable key and value (%s)\n", keyAndValue)
-			continue
-		}
-		m[keyAndValue[0]] = keyAndValue[1]
-	}
-	return m
-}
-
-func isNestedDurationIn(s SlimSpecification, d time.Duration) bool {
-	return cmp.Equal(s.Nested, NestedDuration{Duration: d})
-}
-
 func mustRegisterEnv(t *testing.T, desc string, env map[string]string) {
 	for key, value := range env {
 		if err := os.Setenv(key, value); err != nil {
 			t.Fatalf("aborting %s because environment variable (%s=%s) cannot be set", desc, key, value)
 		}
-	}
-}
-
-func newSlimSpec(label string, enabled bool, n NestedDuration, hitThreshold uint64) *SlimSpecification {
-	return &SlimSpecification{
-		Label:        label,
-		Enabled:      enabled,
-		Nested:       n,
-		HitThreshold: hitThreshold,
 	}
 }
 
