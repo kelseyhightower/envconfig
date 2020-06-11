@@ -817,6 +817,7 @@ type SlimSpecification struct {
 	HitThreshold uint64 `required:"true"`
 	Nested       NestedDuration
 }
+
 type NestedDuration struct {
 	Duration time.Duration `default:"1ns"`
 }
