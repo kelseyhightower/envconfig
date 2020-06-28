@@ -219,6 +219,81 @@ func TestProcess(t *testing.T) {
 	}
 }
 
+type SpecificationDefaultMap struct {
+	ExampleMap     map[string]string
+}
+
+func TestParseMapDefaultSeparator(t *testing.T) {
+	var s SpecificationDefaultMap
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_EXAMPLEMAP", "key1:value1")
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+		return
+	}
+
+	value, ok := s.ExampleMap["key1"]
+	if !ok {
+		t.Error("expected key to be present, but found no key")
+		return
+	}
+
+	if value != "value1" {
+		t.Errorf("expected value to be value1, but got: %v", value)
+	}
+}
+
+type SpecificationCustomSeparatorMap struct {
+	ExampleMap     map[string]string `map_separator:"="`
+}
+
+func TestParseMapCustomSeparator(t *testing.T) {
+	var s SpecificationCustomSeparatorMap
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_EXAMPLEMAP", "key1=value1")
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+		return
+	}
+
+	value, ok := s.ExampleMap["key1"]
+	if !ok {
+		t.Error("expected key to be present, but found no key")
+		return
+	}
+
+	if value != "value1" {
+		t.Errorf("expected value to be value1, but got: %v", value)
+	}
+}
+
+type SpecificationMapSeparatorInValue struct {
+	ExampleMap     map[string]string
+}
+
+func TestParseMapSeparatorInValue(t *testing.T) {
+	var s SpecificationMapSeparatorInValue
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_EXAMPLEMAP", "key1:value:1")
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+		return
+	}
+
+	value, ok := s.ExampleMap["key1"]
+	if !ok {
+		t.Error("expected key to be present, but found no key")
+		return
+	}
+
+	if value != "value:1" {
+		t.Errorf("expected value to be value:1, but got: %v", value)
+	}
+}
+
 func TestParseErrorBool(t *testing.T) {
 	var s Specification
 	os.Clearenv()
