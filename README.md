@@ -125,6 +125,8 @@ export MYAPP_MANUAL_OVERRIDE_1="this will be the value"
 # export MYAPP_MANUALOVERRIDE1="and this will not"
 ```
 
+If no environment variable matches a struct field and this struct field is already populated (non zero value), envconfig will not set the default value.
+
 If envconfig can't find an environment variable value for `MYAPP_DEFAULTVAR`,
 it will populate it with "foobar" as a default value.
 
