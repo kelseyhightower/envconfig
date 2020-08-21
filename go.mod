@@ -1,3 +1,1 @@
-module github.com/davidterranova/envconfig
-
-go 1.13
+module github.com/kelseyhightower/envconfig
