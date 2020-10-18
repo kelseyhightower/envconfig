@@ -60,6 +60,12 @@ type Specification struct {
 	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
+	UpCasedAsDefault             string
+	UpCasedAsDefaultCustom       string `envconfig:"UpCasedAsDefaultCustom"`
+	UpCasedBySpecifying          string `upper:"true"`
+	UpCasedBySpecifyingCustom    string `envconfig:"UpCasedBySpecifyingCustom" upper:"true"`
+	NoUpCased                    string `upper:"false"`
+	NoUpCasedCustom              string `envconfig:"NoUpCasedCustom" upper:"false"`
 	NestedSpecification          struct {
 		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
@@ -794,7 +800,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()
@@ -806,6 +812,43 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 
 	if !strings.Contains(err.Error(), " BAR ") {
 		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
+	}
+}
+
+func TestUpperCase(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "required")
+
+	os.Setenv("ENV_CONFIG_UPCASEDASDEFAULT", "UpCasedAsDefault")
+	os.Setenv("UPCASEDASDEFAULTCUSTOM", "UpCasedAsDefaultCustom")
+
+	os.Setenv("ENV_CONFIG_UPCASEDBYSPECIFYING", "UpCasedBySpecifying")
+	os.Setenv("UPCASEDBYSPECIFYINGCUSTOM", "UpCasedBySpecifyingCustom")
+
+	os.Setenv("ENV_CONFIG_NoUpCased", "NoUpCased")
+	os.Setenv("NoUpCasedCustom", "NoUpCasedCustom")
+
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+	if s.UpCasedAsDefault != "UpCasedAsDefault" {
+		t.Errorf("expected %q, got %q", "UpCasedAsDefault", s.UpCasedAsDefault)
+	}
+	if s.UpCasedAsDefaultCustom != "UpCasedAsDefaultCustom" {
+		t.Errorf("expected %q, got %q", "UpCasedAsDefaultCustom", s.UpCasedAsDefaultCustom)
+	}
+	if s.UpCasedBySpecifying != "UpCasedBySpecifying" {
+		t.Errorf("expected %q, got %q", "UpCasedBySpecifying", s.UpCasedBySpecifying)
+	}
+	if s.UpCasedBySpecifyingCustom != "UpCasedBySpecifyingCustom" {
+		t.Errorf("expected %q, got %q", "UpCasedBySpecifyingCustom", s.UpCasedBySpecifyingCustom)
+	}
+	if s.NoUpCased != "NoUpCased" {
+		t.Errorf("expected %q, got %q", "NoUpCased", s.NoUpCased)
+	}
+	if s.NoUpCasedCustom != "NoUpCasedCustom" {
+		t.Errorf("expected %q, got %q", "NoUpCasedCustom", s.NoUpCasedCustom)
 	}
 }
 

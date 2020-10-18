@@ -98,12 +98,13 @@ For example, consider the following struct:
 
 ```Go
 type Specification struct {
-    ManualOverride1 string `envconfig:"manual_override_1"`
-    DefaultVar      string `default:"foobar"`
-    RequiredVar     string `required:"true"`
-    IgnoredVar      string `ignored:"true"`
-    AutoSplitVar    string `split_words:"true"`
-    RequiredAndAutoSplitVar    string `required:"true" split_words:"true"`
+    ManualOverride1             string  `envconfig:"manual_override_1"`
+    DefaultVar                  string  `default:"foobar"`
+    RequiredVar                 string  `required:"true"`
+    IgnoredVar                  string  `ignored:"true"`
+    AutoSplitVar                string  `split_words:"true"`
+    NotUpperCasedVar            string  `upper:"false"`
+    RequiredAndAutoSplitVar     string  `required:"true" split_words:"true"`
 }
 ```
 
@@ -118,6 +119,11 @@ Envconfig will process value for `ManualOverride1` by populating it with the
 value for `MYAPP_MANUAL_OVERRIDE_1`. Without this struct tag, it would have
 instead looked up `MYAPP_MANUALOVERRIDE1`. With the `split_words:"true"` tag
 it would have looked up `MYAPP_MANUAL_OVERRIDE1`.
+
+By default, Envconfig will look for environment variables by making them upper-cased.
+You can escape from this behavior by providing `upper:"false"` tag. For example
+Envconfig will look for an environment variable called `MYAPP_NotUpperCasedVar`
+for `NotUpperCasedVar` field.
 
 ```Bash
 export MYAPP_MANUAL_OVERRIDE_1="this will be the value"

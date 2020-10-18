@@ -59,6 +59,7 @@ type varInfo struct {
 
 // GatherInfo gathers information about the specified struct
 func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
+	prefix = strings.ToUpper(prefix)
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -96,7 +97,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 			Name:  ftype.Name,
 			Field: f,
 			Tags:  ftype.Tag,
-			Alt:   strings.ToUpper(ftype.Tag.Get("envconfig")),
+			Alt:   ftype.Tag.Get("envconfig"),
 		}
 
 		// Default to the field name as the env var name (will be upcased)
@@ -118,13 +119,19 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 				info.Key = strings.Join(name, "_")
 			}
 		}
+
+		if len(ftype.Tag.Get("upper")) == 0 || isTrue(ftype.Tag.Get("upper")) {
+			info.Key = strings.ToUpper(info.Key)
+			info.Alt = strings.ToUpper(info.Alt)
+		}
+
 		if info.Alt != "" {
 			info.Key = info.Alt
 		}
 		if prefix != "" {
 			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
 		}
-		info.Key = strings.ToUpper(info.Key)
+
 		infos = append(infos, info)
 
 		if f.Kind() == reflect.Struct {
