@@ -43,6 +43,7 @@ type Specification struct {
 	TTL                          uint32
 	Timeout                      time.Duration
 	AdminUsers                   []string
+	StringSliceWithDelimiter     []string `delimiter:"."`
 	MagicNumbers                 []int
 	EmptyNumbers                 []int
 	ByteSlice                    []byte
@@ -64,12 +65,15 @@ type Specification struct {
 		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
 	} `envconfig:"outer"`
-	AfterNested  string
-	DecodeStruct HonorDecodeInStruct `envconfig:"honor"`
-	Datetime     time.Time
-	MapField     map[string]string `default:"one:two,three:four"`
-	UrlValue     CustomURL
-	UrlPointer   *CustomURL
+	AfterNested                string
+	DecodeStruct               HonorDecodeInStruct `envconfig:"honor"`
+	Datetime                   time.Time
+	MapField                   map[string]string `default:"one:two,three:four"`
+	MapFieldWithPairDelim      map[string]string `default:"one:two.three:four" delimiter:"."`
+	MapFieldWithKvDelim        map[string]string `default:"host1;0.0.0.0:25565,host2;0.0.0.0:25565" kv_delimiter:";"`
+	MapFieldWithPairAndKvDelim map[string]string `default:"one;two.three;four" delimiter:"." kv_delimiter:";"`
+	UrlValue                   CustomURL
+	UrlPointer                 *CustomURL
 }
 
 type Embedded struct {
@@ -95,6 +99,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
+	os.Setenv("ENV_CONFIG_STRINGSLICEWITHDELIMITER", "John.Adam.Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
 	os.Setenv("ENV_CONFIG_EMPTYNUMBERS", "")
 	os.Setenv("ENV_CONFIG_BYTESLICE", "this is a test value")
@@ -144,6 +149,12 @@ func TestProcess(t *testing.T) {
 		s.AdminUsers[1] != "Adam" ||
 		s.AdminUsers[2] != "Will" {
 		t.Errorf("expected %#v, got %#v", []string{"John", "Adam", "Will"}, s.AdminUsers)
+	}
+	if len(s.StringSliceWithDelimiter) != 3 ||
+		s.StringSliceWithDelimiter[0] != "John" ||
+		s.StringSliceWithDelimiter[1] != "Adam" ||
+		s.StringSliceWithDelimiter[2] != "Will" {
+		t.Errorf("expected %#v, got %#v", []string{"John", "Adam", "Will"}, s.StringSliceWithDelimiter)
 	}
 	if len(s.MagicNumbers) != 3 ||
 		s.MagicNumbers[0] != 5 ||
@@ -216,6 +227,24 @@ func TestProcess(t *testing.T) {
 
 	if *s.UrlPointer.Value != *u {
 		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
+	}
+
+	if len(s.MapFieldWithPairDelim) != 2 ||
+		s.MapFieldWithPairDelim["one"] != "two" ||
+		s.MapFieldWithPairDelim["three"] != "four" {
+		t.Errorf("expected %q got %q", map[string]string{"one": "two", "three": "four"}, s.MapFieldWithPairDelim)
+	}
+
+	if len(s.MapFieldWithKvDelim) != 2 ||
+		s.MapFieldWithKvDelim["host1"] != "0.0.0.0:25565" ||
+		s.MapFieldWithKvDelim["host2"] != "0.0.0.0:25565" {
+		t.Errorf("expected %q got %q", map[string]string{"host1": "0.0.0.0:25565", "host2": "0.0.0.0:25565"}, s.MapFieldWithKvDelim)
+	}
+
+	if len(s.MapFieldWithPairAndKvDelim) != 2 ||
+		s.MapFieldWithPairAndKvDelim["one"] != "two" ||
+		s.MapFieldWithPairAndKvDelim["three"] != "four" {
+		t.Errorf("expected %q got %q", map[string]string{"one": "two", "three": "four"}, s.MapFieldWithPairAndKvDelim)
 	}
 }
 
@@ -846,6 +875,7 @@ func BenchmarkGatherInfo(b *testing.B) {
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
+	os.Setenv("ENV_CONFIG_STRINGSLICEIWTHDELIMITER", "John.Adam.Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
 	os.Setenv("ENV_CONFIG_COLORCODES", "red:1,green:2,blue:3")
 	os.Setenv("SERVICE_HOST", "127.0.0.1")
