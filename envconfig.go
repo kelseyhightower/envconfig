@@ -212,7 +212,7 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
-		err = processField(value, info.Field)
+		err = processField(value, info.Field, info.Tags)
 		if err != nil {
 			return &ParseError{
 				KeyName:   info.Key,
@@ -234,7 +234,7 @@ func MustProcess(prefix string, spec interface{}) {
 	}
 }
 
-func processField(value string, field reflect.Value) error {
+func processField(value string, field reflect.Value, tags reflect.StructTag) error {
 	typ := field.Type()
 
 	decoder := decoderFrom(field)
@@ -306,10 +306,14 @@ func processField(value string, field reflect.Value) error {
 		if typ.Elem().Kind() == reflect.Uint8 {
 			sl = reflect.ValueOf([]byte(value))
 		} else if len(strings.TrimSpace(value)) != 0 {
-			vals := strings.Split(value, ",")
+			pairDelimiter := ","
+			if specifiedPairDelimiter, ok := tags.Lookup("delimiter"); ok {
+				pairDelimiter = specifiedPairDelimiter
+			}
+			vals := strings.Split(value, pairDelimiter)
 			sl = reflect.MakeSlice(typ, len(vals), len(vals))
 			for i, val := range vals {
-				err := processField(val, sl.Index(i))
+				err := processField(val, sl.Index(i), tags)
 				if err != nil {
 					return err
 				}
@@ -319,19 +323,27 @@ func processField(value string, field reflect.Value) error {
 	case reflect.Map:
 		mp := reflect.MakeMap(typ)
 		if len(strings.TrimSpace(value)) != 0 {
-			pairs := strings.Split(value, ",")
+			kvDelimiter := ":"
+			if specifiedKvDelimiter, ok := tags.Lookup("kv_delimiter"); ok {
+				kvDelimiter = specifiedKvDelimiter
+			}
+			pairDelimiter := ","
+			if specifiedPairDelimiter, ok := tags.Lookup("delimiter"); ok {
+				pairDelimiter = specifiedPairDelimiter
+			}
+			pairs := strings.Split(value, pairDelimiter)
 			for _, pair := range pairs {
-				kvpair := strings.Split(pair, ":")
+				kvpair := strings.Split(pair, kvDelimiter)
 				if len(kvpair) != 2 {
 					return fmt.Errorf("invalid map item: %q", pair)
 				}
 				k := reflect.New(typ.Key()).Elem()
-				err := processField(kvpair[0], k)
+				err := processField(kvpair[0], k, tags)
 				if err != nil {
 					return err
 				}
 				v := reflect.New(typ.Elem()).Elem()
-				err = processField(kvpair[1], v)
+				err = processField(kvpair[1], v, tags)
 				if err != nil {
 					return err
 				}
