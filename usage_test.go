@@ -75,7 +75,6 @@ func TestUsageDefault(t *testing.T) {
 	save := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
-	err := Usage("env_config", &s)
 	outC := make(chan string)
 	// copy the output in a separate goroutine so printing can't block indefinitely
 	go func() {
@@ -83,6 +82,7 @@ func TestUsageDefault(t *testing.T) {
 		io.Copy(&buf, r)
 		outC <- buf.String()
 	}()
+	err := Usage("env_config", &s)
 	w.Close()
 	os.Stdout = save // restoring the real stdout
 	out := <-outC
