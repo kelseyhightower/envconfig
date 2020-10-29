@@ -497,6 +497,32 @@ func TestEmptyMapFieldOverride(t *testing.T) {
 	}
 }
 
+func TestEmptyMapFieldColonOverlap(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_MAPFIELD", "one:localhost:1234,two:localhost:2345")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err)
+	}
+
+	if s.MapField == nil {
+		t.Error("expected empty map, got <nil>")
+	}
+
+	if len(s.MapField) != 2 {
+		t.Errorf("expected map size 2, got map of size %d", len(s.MapField))
+	}
+
+	if one := s.MapField["one"]; one != "localhost:1234" {
+		t.Errorf("expected map[one] = localhost:1234, got %s", one)
+	}
+
+	if one := s.MapField["two"]; one != "localhost:2345" {
+		t.Errorf("expected map[two] = localhost:2345, got %s", one)
+	}
+}
+
 func TestMustProcess(t *testing.T) {
 	var s Specification
 	os.Clearenv()
@@ -794,7 +820,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()
