@@ -343,10 +343,7 @@ func processField(value string, field reflect.Value, tags reflect.StructTag) err
 			pairs := strings.Split(value, pairDelimiter)
 >>>>>>> 0757307 (add support for custom delimiters in map/slices)
 			for _, pair := range pairs {
-				kvpair := strings.Split(pair, kvDelimiter)
-				if len(kvpair) != 2 {
-					return fmt.Errorf("invalid map item: %q", pair)
-				}
+				kvpair := strings.SplitN(pair, kvDelimiter, 2)
 				k := reflect.New(typ.Key()).Elem()
 				err := processField(kvpair[0], k, tags)
 				if err != nil {

@@ -838,6 +838,38 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	}
 }
 
+func TestMapWithEmptyValue(t *testing.T) {
+	var s struct {
+		Foo map[string]string
+	}
+	os.Clearenv()
+	os.Setenv("FOO", "c:,a:b")
+	if err := Process("", &s); err != nil {
+		t.Error(err)
+	}
+	if s.Foo["c"] != "" {
+		t.Errorf("foo[c]: expected '', got '%s'", s.Foo["c"])
+	}
+
+	if s.Foo["a"] != "b" {
+		t.Errorf("foo[a]: expected '%s', got '%s'", "b", s.Foo["a"])
+	}
+}
+
+func TestMapWithNoPairDelimiter(t *testing.T) {
+	var s struct {
+		Foo map[string]string
+	}
+	os.Clearenv()
+	os.Setenv("FOO", "c:a:b")
+	if err := Process("", &s); err != nil {
+		t.Error(err)
+	}
+	if s.Foo["c"] != "a:b" {
+		t.Errorf("foo[c]: expected '%s', got '%s'", "a:b", s.Foo["c"])
+	}
+}
+
 type bracketed string
 
 func (b *bracketed) Set(value string) error {
