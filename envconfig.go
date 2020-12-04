@@ -25,11 +25,12 @@ var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
 type ParseError struct {
-	KeyName   string
-	FieldName string
-	TypeName  string
-	Value     string
-	Err       error
+	KeyName     string
+	FieldName   string
+	TypeName    string
+	Value       string
+	Err         error
+	RedactValue bool
 }
 
 // Decoder has the same semantics as Setter, but takes higher precedence.
@@ -45,7 +46,12 @@ type Setter interface {
 }
 
 func (e *ParseError) Error() string {
-	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
+	errorString := fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
+	if e.RedactValue {
+		errorString = strings.ReplaceAll(errorString, e.Value, "redacted")
+	}
+
+	return errorString
 }
 
 // varInfo maintains information about the configuration variable
@@ -214,12 +220,19 @@ func Process(prefix string, spec interface{}) error {
 
 		err = processField(value, info.Field)
 		if err != nil {
+			var redactValue bool
+			redacted := info.Tags.Get("redacted")
+			if isTrue(redacted) {
+				redactValue = true
+			}
+
 			return &ParseError{
-				KeyName:   info.Key,
-				FieldName: info.Name,
-				TypeName:  info.Field.Type().String(),
-				Value:     value,
-				Err:       err,
+				KeyName:     info.Key,
+				FieldName:   info.Name,
+				TypeName:    info.Field.Type().String(),
+				Value:       value,
+				Err:         err,
+				RedactValue: redactValue,
 			}
 		}
 	}

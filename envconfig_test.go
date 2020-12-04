@@ -60,6 +60,7 @@ type Specification struct {
 	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
+	RedactedVar                  bool    `redacted:"true"`
 	NestedSpecification          struct {
 		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
@@ -304,6 +305,24 @@ func TestParseErrorSplitWords(t *testing.T) {
 	}
 	if s.MultiWordVarWithAutoSplit != 0 {
 		t.Errorf("expected %v, got %v", 0, s.MultiWordVarWithAutoSplit)
+	}
+}
+
+func TestParseErrorRedactedValue(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_REDACTEDVAR", "bar")
+	err := Process("env_config", &s)
+	v, ok := err.(*ParseError)
+	if !ok {
+		t.Errorf("expected ParseError, got %v", v)
+	}
+	if v.FieldName != "RedactedVar" {
+		t.Errorf("expected %s, got %v", "RedactedVar", v.FieldName)
+	}
+	if strings.Contains(v.Error(), "bar") {
+		t.Error("expected not to find a redacted value in the error output")
 	}
 }
 
