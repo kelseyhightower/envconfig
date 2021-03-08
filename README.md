@@ -119,6 +119,15 @@ value for `MYAPP_MANUAL_OVERRIDE_1`. Without this struct tag, it would have
 instead looked up `MYAPP_MANUALOVERRIDE1`. With the `split_words:"true"` tag
 it would have looked up `MYAPP_MANUAL_OVERRIDE1`.
 
+
+```go
+// If you want to set `split_words:"true"` globally you can use:
+err := envconfig.ProcessWithOptions("myapp", &s, envconfig.Options{SplitWords: true})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
 ```Bash
 export MYAPP_MANUAL_OVERRIDE_1="this will be the value"
 

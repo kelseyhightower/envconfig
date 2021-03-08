@@ -47,7 +47,7 @@ type Specification struct {
 	EmptyNumbers                 []int
 	ByteSlice                    []byte
 	ColorCodes                   map[string]int
-	MultiWordVar                 string
+	MultiWordVar                 string `split_words:"false"`
 	MultiWordVarWithAutoSplit    uint32 `split_words:"true"`
 	MultiWordACRWithAutoSplit    uint32 `split_words:"true"`
 	SomePointer                  *string
@@ -195,6 +195,158 @@ func TestProcess(t *testing.T) {
 
 	if expected := time.Date(2016, 8, 16, 18, 57, 05, 0, time.UTC); !s.Datetime.Equal(expected) {
 		t.Errorf("expected %s, got %s", expected.Format(time.RFC3339), s.Datetime.Format(time.RFC3339))
+	}
+
+	if s.MultiWordVarWithAutoSplit != 24 {
+		t.Errorf("expected %q, got %q", 24, s.MultiWordVarWithAutoSplit)
+	}
+
+	if s.MultiWordACRWithAutoSplit != 25 {
+		t.Errorf("expected %d, got %d", 25, s.MultiWordACRWithAutoSplit)
+	}
+
+	u, err := url.Parse("https://github.com/kelseyhightower/envconfig")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *s.UrlValue.Value != *u {
+		t.Errorf("expected %q, got %q", u, s.UrlValue.Value.String())
+	}
+
+	if *s.UrlPointer.Value != *u {
+		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
+	}
+}
+
+func TestProcessWithOptions(t *testing.T) {
+	var s Specification
+
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_DEBUG", "true")
+	os.Setenv("ENV_CONFIG_PORT", "8080")
+	os.Setenv("ENV_CONFIG_RATE", "0.5")
+	os.Setenv("ENV_CONFIG_USER", "Kelsey")
+	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
+	os.Setenv("ENV_CONFIG_ADMIN_USERS", "John,Adam,Will")
+	os.Setenv("ENV_CONFIG_MAGIC_NUMBERS", "5,10,20")
+	os.Setenv("ENV_CONFIG_EMPTY_NUMBERS", "")
+	os.Setenv("ENV_CONFIG_BYTE_SLICE", "this is a test value")
+	os.Setenv("ENV_CONFIG_COLOR_CODES", "red:1,green:2,blue:3")
+	os.Setenv("SERVICE_HOST", "127.0.0.1")
+	os.Setenv("ENV_CONFIG_TTL", "30")
+	os.Setenv("ENV_CONFIG_REQUIRED_VAR", "foo")
+	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_OUTER_INNER", "iamnested")
+	os.Setenv("ENV_CONFIG_AFTER_NESTED", "after")
+	os.Setenv("ENV_CONFIG_HONOR", "honor")
+	os.Setenv("ENV_CONFIG_DATETIME", "2016-08-16T18:57:05Z")
+	os.Setenv("ENV_CONFIG_MULTIWORDVAR", "dont_split")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
+	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
+	os.Setenv("ENV_CONFIG_URL_VALUE", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_URL_POINTER", "https://github.com/kelseyhightower/envconfig")
+
+	if err := ProcessWithOptions("env_config", &s, Options{SplitWords: true}); err != nil {
+		t.Error(err.Error())
+	}
+
+	if s.NoPrefixWithAlt != "127.0.0.1" {
+		t.Errorf("expected %v, got %v", "127.0.0.1", s.NoPrefixWithAlt)
+	}
+
+	if !s.Debug {
+		t.Errorf("expected %v, got %v", true, s.Debug)
+	}
+
+	if s.Port != 8080 {
+		t.Errorf("expected %d, got %v", 8080, s.Port)
+	}
+
+	if s.Rate != 0.5 {
+		t.Errorf("expected %f, got %v", 0.5, s.Rate)
+	}
+
+	if s.TTL != 30 {
+		t.Errorf("expected %d, got %v", 30, s.TTL)
+	}
+
+	if s.User != "Kelsey" {
+		t.Errorf("expected %s, got %s", "Kelsey", s.User)
+	}
+
+	if s.Timeout != 2*time.Minute {
+		t.Errorf("expected %s, got %s", 2*time.Minute, s.Timeout)
+	}
+
+	if s.RequiredVar != "foo" {
+		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
+	}
+
+	if len(s.AdminUsers) != 3 ||
+		s.AdminUsers[0] != "John" ||
+		s.AdminUsers[1] != "Adam" ||
+		s.AdminUsers[2] != "Will" {
+		t.Errorf("expected %#v, got %#v", []string{"John", "Adam", "Will"}, s.AdminUsers)
+	}
+
+	if len(s.MagicNumbers) != 3 ||
+		s.MagicNumbers[0] != 5 ||
+		s.MagicNumbers[1] != 10 ||
+		s.MagicNumbers[2] != 20 {
+		t.Errorf("expected %#v, got %#v", []int{5, 10, 20}, s.MagicNumbers)
+	}
+
+	if len(s.EmptyNumbers) != 0 {
+		t.Errorf("expected %#v, got %#v", []int{}, s.EmptyNumbers)
+	}
+
+	expected := "this is a test value"
+	if string(s.ByteSlice) != expected {
+		t.Errorf("expected %v, got %v", expected, string(s.ByteSlice))
+	}
+
+	if s.Ignored != "" {
+		t.Errorf("expected empty string, got %#v", s.Ignored)
+	}
+
+	if len(s.ColorCodes) != 3 ||
+		s.ColorCodes["red"] != 1 ||
+		s.ColorCodes["green"] != 2 ||
+		s.ColorCodes["blue"] != 3 {
+		t.Errorf(
+			"expected %#v, got %#v",
+			map[string]int{
+				"red":   1,
+				"green": 2,
+				"blue":  3,
+			},
+			s.ColorCodes,
+		)
+	}
+
+	if s.NestedSpecification.Property != "iamnested" {
+		t.Errorf("expected '%s' string, got %#v", "iamnested", s.NestedSpecification.Property)
+	}
+
+	if s.NestedSpecification.PropertyWithDefault != "fuzzybydefault" {
+		t.Errorf("expected default '%s' string, got %#v", "fuzzybydefault", s.NestedSpecification.PropertyWithDefault)
+	}
+
+	if s.AfterNested != "after" {
+		t.Errorf("expected default '%s' string, got %#v", "after", s.AfterNested)
+	}
+
+	if s.DecodeStruct.Value != "decoded" {
+		t.Errorf("expected default '%s' string, got %#v", "decoded", s.DecodeStruct.Value)
+	}
+
+	if expected := time.Date(2016, 8, 16, 18, 57, 05, 0, time.UTC); !s.Datetime.Equal(expected) {
+		t.Errorf("expected %s, got %s", expected.Format(time.RFC3339), s.Datetime.Format(time.RFC3339))
+	}
+
+	if s.MultiWordVar != "dont_split" {
+		t.Errorf("expected %q, got %q", 24, s.MultiWordVar)
 	}
 
 	if s.MultiWordVarWithAutoSplit != 24 {
@@ -794,7 +946,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()
@@ -859,6 +1011,6 @@ func BenchmarkGatherInfo(b *testing.B) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
 	for i := 0; i < b.N; i++ {
 		var s Specification
-		gatherInfo("env_config", &s)
+		gatherInfo("env_config", &s, Options{})
 	}
 }
