@@ -60,6 +60,7 @@ type Specification struct {
 	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
+	OnErr                        *bool   `on_err:"false"`
 	NestedSpecification          struct {
 		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
@@ -103,6 +104,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_TTL", "30")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
 	os.Setenv("ENV_CONFIG_IGNORED", "was-not-ignored")
+	os.Setenv("ENV_CONFIG_ONERR", "invalid-value")
 	os.Setenv("ENV_CONFIG_OUTER_INNER", "iamnested")
 	os.Setenv("ENV_CONFIG_AFTERNESTED", "after")
 	os.Setenv("ENV_CONFIG_HONOR", "honor")
@@ -175,6 +177,10 @@ func TestProcess(t *testing.T) {
 			},
 			s.ColorCodes,
 		)
+	}
+
+	if *s.OnErr != false {
+		t.Errorf("expected '%v' bool, got %v", false, *s.OnErr)
 	}
 
 	if s.NestedSpecification.Property != "iamnested" {
@@ -794,7 +800,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()

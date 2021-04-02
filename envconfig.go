@@ -212,7 +212,10 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
-		err = processField(value, info.Field)
+		if err = processField(value, info.Field); err != nil && info.Tags.Get("on_err") != "" {
+			err = processField(info.Tags.Get("on_err"), info.Field)
+		}
+
 		if err != nil {
 			return &ParseError{
 				KeyName:   info.Key,
