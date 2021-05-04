@@ -125,7 +125,13 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 
 	// Specify the default usage template functions
 	functions := template.FuncMap{
-		"usage_key":         func(v varInfo) string { return v.Key },
+		"usage_key": func(v varInfo) string {
+			val := v.Tags.Get("envconfig")
+			if val != "" {
+				return strings.ToUpper(val)
+			}
+			return v.Key
+		},
 		"usage_description": func(v varInfo) string { return v.Tags.Get("desc") },
 		"usage_type":        func(v varInfo) string { return toTypeDescription(v.Field.Type()) },
 		"usage_default":     func(v varInfo) string { return v.Tags.Get("default") },
