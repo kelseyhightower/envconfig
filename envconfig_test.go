@@ -70,6 +70,7 @@ type Specification struct {
 	MapField     map[string]string `default:"one:two,three:four"`
 	UrlValue     CustomURL
 	UrlPointer   *CustomURL
+	TrimmedVar   string `envconfig:"TRIMMED" trim:"true"`
 }
 
 type Embedded struct {
@@ -111,6 +112,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_TRIMMED", " my-trimmed-password\t  \n")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -138,6 +140,9 @@ func TestProcess(t *testing.T) {
 	}
 	if s.RequiredVar != "foo" {
 		t.Errorf("expected %s, got %s", "foo", s.RequiredVar)
+	}
+	if s.TrimmedVar != "my-trimmed-password" {
+		t.Errorf("expected %s, got %s", "my-trimmed-password", s.TrimmedVar)
 	}
 	if len(s.AdminUsers) != 3 ||
 		s.AdminUsers[0] != "John" ||
@@ -794,7 +799,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()

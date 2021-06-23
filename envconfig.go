@@ -212,6 +212,11 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
+		trim := info.Tags.Get("trim")
+		if isTrue(trim) {
+			value = strings.TrimSpace(value)
+		}
+
 		err = processField(value, info.Field)
 		if err != nil {
 			return &ParseError{
