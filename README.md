@@ -151,7 +151,7 @@ type Specification struct {
 Envconfig won't process a field with the "ignored" tag set to "true", even if a corresponding
 environment variable is set.
 
-Envconfig will trim spaces from both prefix & sufix if ``trim`` tag is set to ``"true"``.
+Envconfig will trim spaces from both prefix & suffix if ``trim`` tag is set to ``"true"``.
 
 ## Supported Struct Field Types
 
