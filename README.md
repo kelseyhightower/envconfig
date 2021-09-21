@@ -98,12 +98,12 @@ For example, consider the following struct:
 
 ```Go
 type Specification struct {
-    ManualOverride1 string `envconfig:"manual_override_1"`
-    DefaultVar      string `default:"foobar"`
-    RequiredVar     string `required:"true"`
-    IgnoredVar      string `ignored:"true"`
-    AutoSplitVar    string `split_words:"true"`
-    RequiredAndAutoSplitVar    string `required:"true" split_words:"true"`
+    ManualOverride1         string `envconfig:"manual_override_1"`
+    DefaultVar              string `default:"foobar"`
+    RequiredVar             string `required:"true"`
+    IgnoredVar              string `ignored:"true"`
+    AutoSplitVar            string `split_words:"true"`
+    RequiredAndAutoSplitVar string `required:"true" split_words:"true"`
 }
 ```
 
@@ -223,7 +223,7 @@ func (sd *SMSProviderDecoder) Decode(value string) error {
 }
 
 type SMSProviderConfig struct {
-    ProviderWithWeight SMSProviderDecoder `envconfig:"SMS_PROVIDER_WITH_WEIGHT"`
+	ProviderWithWeight SMSProviderDecoder `envconfig:"SMS_PROVIDER_WITH_WEIGHT"`
 }
 ```
 
