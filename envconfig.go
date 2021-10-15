@@ -245,6 +245,7 @@ func removeEmptyStructs(spec interface{}) error {
 			if !f.IsNil() {
 				if f.Elem().IsZero() {
 					f.Set(reflect.Zero(f.Type()))
+					continue
 				}
 			}
 
