@@ -1,1 +1,1 @@
-module github.com/kelseyhightower/envconfig
+module github.com/hexdigest/envconfig

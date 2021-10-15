@@ -224,7 +224,40 @@ func Process(prefix string, spec interface{}) error {
 		}
 	}
 
-	return err
+	return removeEmptyStructs(spec)
+}
+
+func removeEmptyStructs(spec interface{}) error {
+	s := reflect.ValueOf(spec)
+
+	if s.Kind() != reflect.Ptr {
+		return ErrInvalidSpecification
+	}
+	s = s.Elem()
+	if s.Kind() != reflect.Struct {
+		return ErrInvalidSpecification
+	}
+
+	for i := 0; i < s.NumField(); i++ {
+		f := s.Field(i)
+
+		if f.Kind() == reflect.Ptr {
+			if !f.IsNil() {
+				if f.Elem().IsZero() {
+					f.Set(reflect.Zero(f.Type()))
+				}
+			}
+
+			if f.Elem().Kind() == reflect.Struct {
+				err := removeEmptyStructs(f.Elem().Addr().Interface())
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // MustProcess is the same as Process but panics if an error occurs
