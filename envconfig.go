@@ -241,13 +241,20 @@ func removeEmptyStructs(spec interface{}) error {
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 
-		if f.Kind() == reflect.Ptr && f.Elem().Kind() == reflect.Struct && !f.IsNil() {
-			if err := removeEmptyStructs(f.Elem().Addr().Interface()); err != nil {
+		switch f.Kind() {
+		case reflect.Struct:
+			if err := removeEmptyStructs(f.Addr().Interface()); err != nil {
 				return err
 			}
+		case reflect.Ptr:
+			if f.Elem().Kind() == reflect.Struct && !f.IsNil() {
+				if err := removeEmptyStructs(f.Elem().Addr().Interface()); err != nil {
+					return err
+				}
 
-			if f.Elem().IsZero() {
-				f.Set(reflect.Zero(f.Type()))
+				if f.Elem().IsZero() {
+					f.Set(reflect.Zero(f.Type()))
+				}
 			}
 		}
 	}
