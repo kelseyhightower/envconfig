@@ -12,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/tj/assert"
 )
 
 type HonorDecodeInStruct struct {
@@ -794,7 +797,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()
@@ -861,4 +864,32 @@ func BenchmarkGatherInfo(b *testing.B) {
 		var s Specification
 		gatherInfo("env_config", &s)
 	}
+}
+
+func Test_removeEmptyStructs(t *testing.T) {
+	type t3 struct {
+		Field3 string
+	}
+	type t2 struct {
+		Field2 *t3
+	}
+	type t1 struct {
+		Field1 *t2
+	}
+	t.Run("remove_empty_struct", func(t *testing.T) {
+
+		v := t1{Field1: &t2{Field2: &t3{}}}
+
+		err := removeEmptyStructs(&v)
+		require.NoError(t, err)
+		assert.Equal(t, t1{}, v)
+	})
+
+	t.Run("dont_remove_nonempty_struct", func(t *testing.T) {
+		v := t1{Field1: &t2{Field2: &t3{Field3: "hello"}}}
+
+		err := removeEmptyStructs(&v)
+		require.NoError(t, err)
+		assert.Equal(t, t1{Field1: &t2{Field2: &t3{Field3: "hello"}}}, v)
+	})
 }
