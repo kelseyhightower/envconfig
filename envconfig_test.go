@@ -804,8 +804,8 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 		t.Error("no failure when missing required variable")
 	}
 
-	if !strings.Contains(err.Error(), " BAR ") {
-		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
+	if !strings.Contains(err.Error(), " ENV_CONFIG_BAR ") {
+		t.Errorf("expected error message to contain ENV_CONFIG_BAR, got \"%v\"", err)
 	}
 }
 
