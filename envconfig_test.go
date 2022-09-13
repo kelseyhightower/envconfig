@@ -12,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type HonorDecodeInStruct struct {
@@ -861,4 +864,44 @@ func BenchmarkGatherInfo(b *testing.B) {
 		var s Specification
 		gatherInfo("env_config", &s)
 	}
+}
+
+func Test_removeEmptyStructs(t *testing.T) {
+	type t3 struct {
+		Field3 string
+	}
+	type t2 struct {
+		Field2 *t3
+	}
+	type t1 struct {
+		Field1 *t2
+	}
+
+	type t4 struct {
+		Field4 t1
+	}
+
+	t.Run("remove_empty_struct_all_pointers", func(t *testing.T) {
+		v := t1{Field1: &t2{Field2: &t3{}}}
+
+		err := removeEmptyStructs(&v)
+		require.NoError(t, err)
+		assert.Equal(t, t1{}, v)
+	})
+
+	t.Run("remove_empty_struct_non_pointer_level", func(t *testing.T) {
+		v := t4{Field4: t1{Field1: &t2{Field2: &t3{}}}}
+
+		err := removeEmptyStructs(&v)
+		require.NoError(t, err)
+		assert.Equal(t, t4{}, v)
+	})
+
+	t.Run("dont_remove_nonempty_struct", func(t *testing.T) {
+		v := t1{Field1: &t2{Field2: &t3{Field3: "hello"}}}
+
+		err := removeEmptyStructs(&v)
+		require.NoError(t, err)
+		assert.Equal(t, t1{Field1: &t2{Field2: &t3{Field3: "hello"}}}, v)
+	})
 }
