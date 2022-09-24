@@ -19,8 +19,10 @@ import (
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
-var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
-var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
+var (
+	gatherRegexp  = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
+	acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
+)
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -33,7 +35,10 @@ type ParseError struct {
 }
 
 // Decoder has the same semantics as Setter, but takes higher precedence.
+//
 // It is provided for historical compatibility.
+//
+// Deprecated: use Setter.
 type Decoder interface {
 	Decode(value string) error
 }
