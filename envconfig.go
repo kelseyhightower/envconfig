@@ -205,7 +205,7 @@ func Process(prefix string, spec interface{}) error {
 			if isTrue(req) {
 				key := info.Key
 				if info.Alt != "" {
-					key = info.Alt
+					return fmt.Errorf("required key %s or %s missing value", key, info.Alt)
 				}
 				return fmt.Errorf("required key %s missing value", key)
 			}
