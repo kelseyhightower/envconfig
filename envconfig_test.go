@@ -859,6 +859,6 @@ func BenchmarkGatherInfo(b *testing.B) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "24")
 	for i := 0; i < b.N; i++ {
 		var s Specification
-		gatherInfo("env_config", &s)
+		GatherInfo("env_config", &s)
 	}
 }

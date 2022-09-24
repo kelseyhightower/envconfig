@@ -125,11 +125,11 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 
 	// Specify the default usage template functions
 	functions := template.FuncMap{
-		"usage_key":         func(v varInfo) string { return v.Key },
-		"usage_description": func(v varInfo) string { return v.Tags.Get("desc") },
-		"usage_type":        func(v varInfo) string { return toTypeDescription(v.Field.Type()) },
-		"usage_default":     func(v varInfo) string { return v.Tags.Get("default") },
-		"usage_required": func(v varInfo) (string, error) {
+		"usage_key":         func(v VarInfo) string { return v.Key },
+		"usage_description": func(v VarInfo) string { return v.Tags.Get("desc") },
+		"usage_type":        func(v VarInfo) string { return toTypeDescription(v.Field.Type()) },
+		"usage_default":     func(v VarInfo) string { return v.Tags.Get("default") },
+		"usage_required": func(v VarInfo) (string, error) {
 			req := v.Tags.Get("required")
 			if req != "" {
 				reqB, err := strconv.ParseBool(req)
@@ -155,7 +155,7 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 // Usaget writes usage information to the specified io.Writer using the specified template
 func Usaget(prefix string, spec interface{}, out io.Writer, tmpl *template.Template) error {
 	// gather first
-	infos, err := gatherInfo(prefix, spec)
+	infos, err := GatherInfo(prefix, spec)
 	if err != nil {
 		return err
 	}

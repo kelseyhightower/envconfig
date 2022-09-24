@@ -48,8 +48,8 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
 }
 
-// varInfo maintains information about the configuration variable
-type varInfo struct {
+// VarInfo maintains information about the configuration variable
+type VarInfo struct {
 	Name  string
 	Alt   string
 	Key   string
@@ -58,7 +58,7 @@ type varInfo struct {
 }
 
 // GatherInfo gathers information about the specified struct
-func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
+func GatherInfo(prefix string, spec interface{}) ([]VarInfo, error) {
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -71,7 +71,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 	typeOfSpec := s.Type()
 
 	// over allocate an info array, we will extend if needed later
-	infos := make([]varInfo, 0, s.NumField())
+	infos := make([]VarInfo, 0, s.NumField())
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		ftype := typeOfSpec.Field(i)
@@ -92,7 +92,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 		}
 
 		// Capture information about the config variable
-		info := varInfo{
+		info := VarInfo{
 			Name:  ftype.Name,
 			Field: f,
 			Tags:  ftype.Tag,
@@ -136,7 +136,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 				}
 
 				embeddedPtr := f.Addr().Interface()
-				embeddedInfos, err := gatherInfo(innerPrefix, embeddedPtr)
+				embeddedInfos, err := GatherInfo(innerPrefix, embeddedPtr)
 				if err != nil {
 					return nil, err
 				}
@@ -153,7 +153,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 // that we don't know how or want to parse. This is likely only meaningful with
 // a non-empty prefix.
 func CheckDisallowed(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
+	infos, err := GatherInfo(prefix, spec)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
+	infos, err := GatherInfo(prefix, spec)
 
 	for _, info := range infos {
 
