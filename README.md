@@ -98,12 +98,13 @@ For example, consider the following struct:
 
 ```Go
 type Specification struct {
-    ManualOverride1 string `envconfig:"manual_override_1"`
-    DefaultVar      string `default:"foobar"`
-    RequiredVar     string `required:"true"`
-    IgnoredVar      string `ignored:"true"`
-    AutoSplitVar    string `split_words:"true"`
-    RequiredAndAutoSplitVar    string `required:"true" split_words:"true"`
+	ManualOverride1         string `envconfig:"manual_override_1"`
+	DefaultVar              string `default:"foobar"`
+	RequiredVar             string `required:"true"`
+	IgnoredVar              string `ignored:"true"`
+	AutoSplitVar            string `split_words:"true"`
+	RequiredAndAutoSplitVar string `required:"true" split_words:"true"`
+	TrimmedVar              string `trim:"true"`
 }
 ```
 
@@ -149,6 +150,8 @@ type Specification struct {
 
 Envconfig won't process a field with the "ignored" tag set to "true", even if a corresponding
 environment variable is set.
+
+Envconfig will trim spaces from both prefix & suffix if ``trim`` tag is set to ``"true"``.
 
 ## Supported Struct Field Types
 
