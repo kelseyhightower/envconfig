@@ -182,6 +182,10 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
+	return processOrOverlay(prefix, spec, false)
+}
+
+func processOrOverlay(prefix string, spec interface{}, overlay bool) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -193,6 +197,10 @@ func Process(prefix string, spec interface{}) error {
 		value, ok := lookupEnv(info.Key)
 		if !ok && info.Alt != "" {
 			value, ok = lookupEnv(info.Alt)
+		}
+
+		if !ok && overlay && !info.Field.IsZero() {
+			continue
 		}
 
 		def := info.Tags.Get("default")
@@ -230,6 +238,19 @@ func Process(prefix string, spec interface{}) error {
 // MustProcess is the same as Process but panics if an error occurs
 func MustProcess(prefix string, spec interface{}) {
 	if err := Process(prefix, spec); err != nil {
+		panic(err)
+	}
+}
+
+// Overlay will replace any field in base that is found in the environment
+// Value precedence moves from environment -> struct -> defaults
+func Overlay(prefix string, spec interface{}) error {
+	return processOrOverlay(prefix, spec, true)
+}
+
+// MustOverlay attempts to Overlay and panics if an error occurs
+func MustOverlay(prefix string, spec interface{}) {
+	if err := Overlay(prefix, spec); err != nil {
 		panic(err)
 	}
 }

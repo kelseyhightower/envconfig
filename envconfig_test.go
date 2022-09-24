@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 type HonorDecodeInStruct struct {
@@ -806,6 +808,50 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 
 	if !strings.Contains(err.Error(), " BAR ") {
 		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
+	}
+}
+
+type SlimSpecification struct {
+	Label        string `default:"foo"`
+	Enabled      bool   `default:"true"`
+	HitThreshold uint64 `required:"true"`
+	Nested       NestedDuration
+}
+
+type NestedDuration struct {
+	Duration time.Duration `default:"1ns"`
+}
+
+func TestOverlay(t *testing.T) {
+	testCases := []struct {
+		desc, prefix string
+		env          map[string]string
+		s, want      *SlimSpecification
+		wantErr      error
+	}{
+		{"preserve enabled from spec", "env_config", map[string]string{"ENV_CONFIG_LABEL": "bar", "ENV_CONFIG_NESTED_DURATION": "1ms", "ENV_CONFIG_HITTHRESHOLD": "1"}, &SlimSpecification{Enabled: true}, &SlimSpecification{"bar", true, 1, NestedDuration{1 * time.Millisecond}}, nil},
+		{"overlay label from environment on top of spec", "env_config", map[string]string{"ENV_CONFIG_LABEL": "bar", "ENV_CONFIG_HITTHRESHOLD": "1"}, &SlimSpecification{Label: "goofy"}, &SlimSpecification{"bar", true, 1, NestedDuration{1 * time.Nanosecond}}, nil},
+		{"required hitThreshold value from base", "env_config", map[string]string{}, &SlimSpecification{HitThreshold: 1}, &SlimSpecification{"foo", true, 1, NestedDuration{1 * time.Nanosecond}}, nil},
+		{"missing required hitThreshold value fails", "env_config", map[string]string{}, &SlimSpecification{}, &SlimSpecification{"foo", true, 0, NestedDuration{}}, fmt.Errorf("required key %s missing value", "ENV_CONFIG_HITTHRESHOLD")},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			os.Clearenv()
+			mustRegisterEnv(t, tC.desc, tC.env)
+
+			err := Overlay(tC.prefix, tC.s)
+			if diff := cmp.Diff(&tC.s, &tC.want); diff != "" || !cmp.Equal(err, tC.wantErr, cmp.Comparer(func(l, r error) bool { return l.Error() == r.Error() })) {
+				t.Errorf("Overlay(\"%s\",%T)=%v (err=%v); got=%v; error=%v\nDiff: %s", tC.prefix, tC.s, tC.want, tC.wantErr, tC.s, err, diff)
+			}
+		})
+	}
+}
+
+func mustRegisterEnv(t *testing.T, desc string, env map[string]string) {
+	for key, value := range env {
+		if err := os.Setenv(key, value); err != nil {
+			t.Fatalf("aborting %s because environment variable (%s=%s) cannot be set", desc, key, value)
+		}
 	}
 }
 
