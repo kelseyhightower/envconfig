@@ -448,6 +448,17 @@ func TestAlternateNameDefaultVar(t *testing.T) {
 		t.Error(err.Error())
 	}
 
+	if s.NoPrefixDefault != "betterbroker" {
+		t.Errorf("expected %q, got %q", "betterbroker", s.NoPrefixDefault)
+	}
+
+	os.Clearenv()
+	s.NoPrefixDefault = ""
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	if err := Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
 	if s.NoPrefixDefault != "127.0.0.1" {
 		t.Errorf("expected %q, got %q", "127.0.0.1", s.NoPrefixDefault)
 	}
