@@ -19,8 +19,10 @@ import (
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
-var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
-var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
+var (
+	gatherRegexp  = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
+	acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
+)
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -180,8 +182,23 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	return nil
 }
 
+type Config struct {
+	AllRequired bool
+}
+
+func WithAllRequired() func(*Config) {
+	return func(c *Config) {
+		c.AllRequired = true
+	}
+}
+
 // Process populates the specified struct based on environment variables
-func Process(prefix string, spec interface{}) error {
+func Process(prefix string, spec interface{}, opts ...func(*Config)) error {
+	conf := Config{}
+	for _, o := range opts {
+		o(&conf)
+	}
+
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -202,7 +219,7 @@ func Process(prefix string, spec interface{}) error {
 
 		req := info.Tags.Get("required")
 		if !ok && def == "" {
-			if isTrue(req) {
+			if isTrue(req) || conf.AllRequired {
 				key := info.Key
 				if info.Alt != "" {
 					key = info.Alt
