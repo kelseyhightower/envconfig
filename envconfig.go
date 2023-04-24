@@ -305,17 +305,12 @@ func processField(value string, field reflect.Value, tags reflect.StructTag) err
 		sl := reflect.MakeSlice(typ, 0, 0)
 		if typ.Elem().Kind() == reflect.Uint8 {
 			sl = reflect.ValueOf([]byte(value))
-<<<<<<< HEAD
-		} else if strings.TrimSpace(value) != "" {
-			vals := strings.Split(value, ",")
-=======
 		} else if len(strings.TrimSpace(value)) != 0 {
 			pairDelimiter := ","
 			if specifiedPairDelimiter, ok := tags.Lookup("delimiter"); ok {
 				pairDelimiter = specifiedPairDelimiter
 			}
 			vals := strings.Split(value, pairDelimiter)
->>>>>>> 0757307 (add support for custom delimiters in map/slices)
 			sl = reflect.MakeSlice(typ, len(vals), len(vals))
 			for i, val := range vals {
 				err := processField(val, sl.Index(i), tags)
@@ -327,10 +322,6 @@ func processField(value string, field reflect.Value, tags reflect.StructTag) err
 		field.Set(sl)
 	case reflect.Map:
 		mp := reflect.MakeMap(typ)
-<<<<<<< HEAD
-		if strings.TrimSpace(value) != "" {
-			pairs := strings.Split(value, ",")
-=======
 		if len(strings.TrimSpace(value)) != 0 {
 			kvDelimiter := ":"
 			if specifiedKvDelimiter, ok := tags.Lookup("kv_delimiter"); ok {
@@ -341,7 +332,6 @@ func processField(value string, field reflect.Value, tags reflect.StructTag) err
 				pairDelimiter = specifiedPairDelimiter
 			}
 			pairs := strings.Split(value, pairDelimiter)
->>>>>>> 0757307 (add support for custom delimiters in map/slices)
 			for _, pair := range pairs {
 				kvpair := strings.SplitN(pair, kvDelimiter, 2)
 				k := reflect.New(typ.Key()).Elem()
