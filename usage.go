@@ -116,7 +116,10 @@ func Usage(prefix string, spec interface{}) error {
 	tabs := tabwriter.NewWriter(os.Stdout, 1, 0, 4, ' ', 0)
 
 	err := Usagef(prefix, spec, tabs, DefaultTableFormat)
-	tabs.Flush()
+	innerErr := tabs.Flush()
+	if innerErr != nil {
+		return innerErr
+	}
 	return err
 }
 
