@@ -50,6 +50,14 @@ func TestMain(m *testing.M) {
 
 func compareUsage(want, got string, t *testing.T) {
 	got = strings.ReplaceAll(got, " ", ".")
+
+	// remove all newlines, tabs and linefeeds from got and want
+	got = strings.ReplaceAll(got, "\t", "")
+	got = strings.ReplaceAll(got, "\n", "")
+	got = strings.ReplaceAll(got, "\r", "")
+	want = strings.ReplaceAll(want, "\t", "")
+	want = strings.ReplaceAll(want, "\n", "")
+	want = strings.ReplaceAll(want, "\r", "")
 	if want != got {
 		shortest := len(want)
 		if len(got) < shortest {
@@ -60,8 +68,7 @@ func compareUsage(want, got string, t *testing.T) {
 		}
 		for i := 0; i < shortest; i++ {
 			if want[i] != got[i] {
-				t.Errorf("difference at index %d, expected '%c' (%v), found '%c' (%v)\n",
-					i, want[i], want[i], got[i], got[i])
+				t.Errorf("difference at index %d, expected '%v', found '%v'\n", i, want[i], got[i])
 				break
 			}
 		}
