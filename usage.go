@@ -55,21 +55,23 @@ func implementsInterface(t reflect.Type) bool {
 }
 
 // toTypeDescription converts Go types into a human readable description
-func toTypeDescription(t reflect.Type) string {
+func (p Processor) toTypeDescription(t reflect.Type) string {
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
 			return "String"
 		}
-		return fmt.Sprintf("Comma-separated list of %s", toTypeDescription(t.Elem()))
+		return fmt.Sprintf("[%s]-separated list of [%s]", p.slicesep, p.toTypeDescription(t.Elem()))
 	case reflect.Map:
 		return fmt.Sprintf(
-			"Comma-separated list of %s:%s pairs",
-			toTypeDescription(t.Key()),
-			toTypeDescription(t.Elem()),
+			"[%s]-separated list of {%s%s%s} pairs",
+			p.mapsep,
+			p.toTypeDescription(t.Key()),
+			p.keysep,
+			p.toTypeDescription(t.Elem()),
 		)
 	case reflect.Ptr:
-		return toTypeDescription(t.Elem())
+		return p.toTypeDescription(t.Elem())
 	case reflect.Struct:
 		if implementsInterface(t) && t.Name() != "" {
 			return t.Name()
@@ -111,23 +113,32 @@ func toTypeDescription(t reflect.Type) string {
 
 // Usage writes usage information to stdout using the default header and table format
 func Usage(prefix string, spec interface{}) error {
+	return DefaultProcessor.Usage(prefix, spec)
+}
+
+// Usagef writes usage information to the specified io.Writer using the specified template specification
+func Usagef(prefix string, spec interface{}, out io.Writer, format string) error {
+	return DefaultProcessor.Usagef(prefix, spec, out, format)
+}
+
+func (p Processor) Usage(prefix string, spec interface{}) error {
 	// The default is to output the usage information as a table
 	// Create tabwriter instance to support table output
 	tabs := tabwriter.NewWriter(os.Stdout, 1, 0, 4, ' ', 0)
 
-	err := Usagef(prefix, spec, tabs, DefaultTableFormat)
+	err := p.Usagef(prefix, spec, tabs, DefaultTableFormat)
 	tabs.Flush()
 	return err
 }
 
 // Usagef writes usage information to the specified io.Writer using the specified template specification
-func Usagef(prefix string, spec interface{}, out io.Writer, format string) error {
+func (p Processor) Usagef(prefix string, spec interface{}, out io.Writer, format string) error {
 
 	// Specify the default usage template functions
 	functions := template.FuncMap{
 		"usage_key":         func(v varInfo) string { return v.Key },
 		"usage_description": func(v varInfo) string { return v.Tags.Get("desc") },
-		"usage_type":        func(v varInfo) string { return toTypeDescription(v.Field.Type()) },
+		"usage_type":        func(v varInfo) string { return p.toTypeDescription(v.Field.Type()) },
 		"usage_default":     func(v varInfo) string { return v.Tags.Get("default") },
 		"usage_required": func(v varInfo) (string, error) {
 			req := v.Tags.Get("required")

@@ -47,6 +47,7 @@ type Specification struct {
 	EmptyNumbers                 []int
 	ByteSlice                    []byte
 	ColorCodes                   map[string]int
+	SliceMap                     map[string][]int
 	MultiWordVar                 string
 	MultiWordVarWithAutoSplit    uint32 `split_words:"true"`
 	MultiWordACRWithAutoSplit    uint32 `split_words:"true"`
@@ -478,6 +479,39 @@ func TestPointerFieldBlank(t *testing.T) {
 		t.Errorf("expected <nil>, got %q", *s.SomePointer)
 	}
 }
+
+func TestNonDefaultProcessor(t *testing.T) {
+	var s Specification
+	proc := NewProcessor().WithKeySepChar("=").WithMapSepChar("&").WithSliceSepChar(",")
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_MAPFIELD", "")
+	os.Setenv("ENV_CONFIG_SLICEMAP", "red=1&green=2,8&blue=3,42,70")
+	if err := proc.Process("env_config", &s); err != nil {
+		t.Error(err.Error())
+	}
+
+	if len(s.SliceMap) != 3 {
+		t.Errorf("expected 3 keys, got map of size %d", len(s.MapField))
+	}
+
+	v, ok := s.SliceMap["red"]
+	if !ok {
+		t.Errorf("expected key %s not in slicemap", "red")
+	}
+	if len(v) != 1 || v[0] != 1 {
+		t.Errorf("expected value of slice incorrect, got: %v", v)
+	}
+
+	v, ok = s.SliceMap["blue"]
+	if !ok {
+		t.Errorf("expected key %s not in slicemap", "blue")
+	}
+	if len(v) != 3 || v[0] != 3 || v[1] !=  42 || v[2] != 70 {
+		t.Errorf("expected value of slice incorrect, got: %v", v)
+	}
+}
+
 
 func TestEmptyMapFieldOverride(t *testing.T) {
 	var s Specification
