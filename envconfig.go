@@ -44,6 +44,13 @@ type Setter interface {
 	Set(value string) error
 }
 
+// `os.Getenv` cannot differentiate between an explicitly set empty value
+// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
+// but it is only available in go1.5 or newer. We're using Go build tags
+// here to use os.LookupEnv for >=go1.5
+// LookupEnv is a function that retrieves the value of the environment variable
+var Lookup func(string) (string, bool) = lookupEnv
+
 func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
 }
@@ -186,13 +193,9 @@ func Process(prefix string, spec interface{}) error {
 
 	for _, info := range infos {
 
-		// `os.Getenv` cannot differentiate between an explicitly set empty value
-		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
-		// but it is only available in go1.5 or newer. We're using Go build tags
-		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(info.Key)
+		value, ok := Lookup(info.Key)
 		if !ok && info.Alt != "" {
-			value, ok = lookupEnv(info.Alt)
+			value, ok = Lookup(info.Alt)
 		}
 
 		def := info.Tags.Get("default")
