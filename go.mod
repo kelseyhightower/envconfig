@@ -1,1 +1,1 @@
-module github.com/ltagliamonte-dd/envconfig
+module github.com/kelseyhightower/envconfig
