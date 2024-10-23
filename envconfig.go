@@ -16,6 +16,18 @@ import (
 	"time"
 )
 
+type config struct {
+	lookupEnv func(key string) (string, bool)
+}
+
+type Option func(*config)
+
+func WithLookupEnv(lookupEnv func(key string) (string, bool)) Option {
+	return func(c *config) {
+		c.lookupEnv = lookupEnv
+	}
+}
+
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
@@ -181,7 +193,15 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 }
 
 // Process populates the specified struct based on environment variables
-func Process(prefix string, spec interface{}) error {
+func Process(prefix string, spec interface{}, options ...Option) error {
+	cfg := config{
+		lookupEnv: os.LookupEnv,
+	}
+
+	for _, option := range options {
+		option(&cfg)
+	}
+
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -190,9 +210,9 @@ func Process(prefix string, spec interface{}) error {
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer. We're using Go build tags
 		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(info.Key)
+		value, ok := cfg.lookupEnv(info.Key)
 		if !ok && info.Alt != "" {
-			value, ok = lookupEnv(info.Alt)
+			value, ok = cfg.lookupEnv(info.Alt)
 		}
 
 		def := info.Tags.Get("default")
@@ -228,8 +248,8 @@ func Process(prefix string, spec interface{}) error {
 }
 
 // MustProcess is the same as Process but panics if an error occurs
-func MustProcess(prefix string, spec interface{}) {
-	if err := Process(prefix, spec); err != nil {
+func MustProcess(prefix string, spec interface{}, options ...Option) {
+	if err := Process(prefix, spec, options...); err != nil {
 		panic(err)
 	}
 }
