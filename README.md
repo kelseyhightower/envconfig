@@ -164,9 +164,9 @@ envconfig supports these struct field types:
 
 Embedded structs using these fields are also supported.
 
-## Custom Decoders
+## Custom Setters
 
-Any field whose type (or pointer-to-type) implements `envconfig.Decoder` can
+Any field whose type (or pointer-to-type) implements `envconfig.Setter` can
 control its own deserialization:
 
 ```Bash
@@ -174,15 +174,15 @@ export DNS_SERVER=8.8.8.8
 ```
 
 ```Go
-type IPDecoder net.IP
+type IPSetter net.IP
 
-func (ipd *IPDecoder) Decode(value string) error {
-    *ipd = IPDecoder(net.ParseIP(value))
+func (ipd *IPSetter) Set(value string) error {
+    *ipd = IPSetter(net.ParseIP(value))
     return nil
 }
 
 type DNSConfig struct {
-    Address IPDecoder `envconfig:"DNS_SERVER"`
+    Address IPSetter `envconfig:"DNS_SERVER"`
 }
 ```
 
@@ -198,9 +198,9 @@ type providerDetails struct {
 	Weight int
 }
 
-type SMSProviderDecoder map[string][]providerDetails
+type SMSProviderSetter map[string][]providerDetails
 
-func (sd *SMSProviderDecoder) Decode(value string) error {
+func (sd *SMSProviderSetter) Set(value string) error {
 	smsProvider := map[string][]providerDetails{}
 	pairs := strings.Split(value, ";")
 	for _, pair := range pairs {
@@ -216,12 +216,12 @@ func (sd *SMSProviderDecoder) Decode(value string) error {
 		smsProvider[kvpair[0]] = providerdata
 
 	}
-	*sd = SMSProviderDecoder(smsProvider)
+	*sd = SMSProviderSetter(smsProvider)
 	return nil
 }
 
 type SMSProviderConfig struct {
-    ProviderWithWeight SMSProviderDecoder `envconfig:"SMS_PROVIDER_WITH_WEIGHT"`
+    ProviderWithWeight SMSProviderSetter `envconfig:"SMS_PROVIDER_WITH_WEIGHT"`
 }
 ```
 
