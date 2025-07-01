@@ -184,6 +184,7 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 func Process(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
 
+	var missingKeys []string
 	for _, info := range infos {
 
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
@@ -207,7 +208,7 @@ func Process(prefix string, spec interface{}) error {
 				if info.Alt != "" {
 					key = info.Alt
 				}
-				return fmt.Errorf("required key %s missing value", key)
+				missingKeys = append(missingKeys, key)
 			}
 			continue
 		}
@@ -222,6 +223,10 @@ func Process(prefix string, spec interface{}) error {
 				Err:       err,
 			}
 		}
+	}
+
+	if len(missingKeys) > 0 {
+		return fmt.Errorf("required key(s) missing values: %s", strings.Join(missingKeys, ","))
 	}
 
 	return err
