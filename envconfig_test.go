@@ -43,6 +43,7 @@ type Specification struct {
 	TTL                          uint32
 	Timeout                      time.Duration
 	AdminUsers                   []string
+	EmptyUsers                   []string
 	MagicNumbers                 []int
 	EmptyNumbers                 []int
 	ByteSlice                    []byte
@@ -95,6 +96,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_USER", "Kelsey")
 	os.Setenv("ENV_CONFIG_TIMEOUT", "2m")
 	os.Setenv("ENV_CONFIG_ADMINUSERS", "John,Adam,Will")
+	os.Setenv("ENV_CONFIG_EMPTYUSERS", "John,,Will")
 	os.Setenv("ENV_CONFIG_MAGICNUMBERS", "5,10,20")
 	os.Setenv("ENV_CONFIG_EMPTYNUMBERS", "")
 	os.Setenv("ENV_CONFIG_BYTESLICE", "this is a test value")
@@ -144,6 +146,11 @@ func TestProcess(t *testing.T) {
 		s.AdminUsers[1] != "Adam" ||
 		s.AdminUsers[2] != "Will" {
 		t.Errorf("expected %#v, got %#v", []string{"John", "Adam", "Will"}, s.AdminUsers)
+	}
+	if len(s.EmptyUsers) != 2 ||
+		s.AdminUsers[0] != "John" ||
+		s.AdminUsers[1] != "Will" {
+		t.Errorf("expected %#v, got %#v", []string{"John", "Will"}, s.EmptyUsers)
 	}
 	if len(s.MagicNumbers) != 3 ||
 		s.MagicNumbers[0] != 5 ||

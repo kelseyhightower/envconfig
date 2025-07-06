@@ -307,8 +307,9 @@ func processField(value string, field reflect.Value) error {
 			sl = reflect.ValueOf([]byte(value))
 		} else if strings.TrimSpace(value) != "" {
 			vals := strings.Split(value, ",")
-			sl = reflect.MakeSlice(typ, len(vals), len(vals))
-			for i, val := range vals {
+			notEmptyVals := removeEmptyVals(vals)
+			sl = reflect.MakeSlice(typ, len(notEmptyVals), len(notEmptyVals))
+			for i, val := range notEmptyVals {
 				err := processField(val, sl.Index(i))
 				if err != nil {
 					return err
@@ -342,6 +343,16 @@ func processField(value string, field reflect.Value) error {
 	}
 
 	return nil
+}
+
+func removeEmptyVals(vals []string) []string {
+	var result []string
+	for _, str := range vals {
+		if str != "" {
+			result = append(result, str)
+		}
+	}
+	return result
 }
 
 func interfaceFrom(field reflect.Value, fn func(interface{}, *bool)) {
