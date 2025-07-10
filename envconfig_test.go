@@ -54,14 +54,14 @@ type Specification struct {
 	SomePointerWithDefault       *string `default:"foo2baz" desc:"foorbar is the word"`
 	MultiWordVarWithAlt          string  `envconfig:"MULTI_WORD_VAR_WITH_ALT" desc:"what alt"`
 	MultiWordVarWithLowerCaseAlt string  `envconfig:"multi_word_var_with_lower_case_alt"`
-	NoPrefixWithAlt              string  `envconfig:"SERVICE_HOST"`
+	NoPrefixWithAlt              string  `envconfig:"SERVICE_HOST" no_pfx:"alt"`
 	DefaultVar                   string  `default:"foobar"`
 	RequiredVar                  string  `required:"True"`
-	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1"`
+	NoPrefixDefault              string  `envconfig:"BROKER" default:"127.0.0.1" no_pfx:"alt"`
 	RequiredDefault              string  `required:"true" default:"foo2bar"`
 	Ignored                      string  `ignored:"true"`
 	NestedSpecification          struct {
-		Property            string `envconfig:"inner"`
+		Property            string `envconfig:"inner" no_pfx:"alt"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
 	} `envconfig:"outer"`
 	AfterNested  string
@@ -795,6 +795,23 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
 		Foo string `envconfig:"BAR" required:"true"`
+	}
+
+	os.Clearenv()
+	err := Process("env_config", &s)
+
+	if err == nil {
+		t.Error("no failure when missing required variable")
+	}
+
+	if !strings.Contains(err.Error(), " ENV_CONFIG_BAR ") {
+		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
+	}
+}
+
+func TestErrorMessageForRequiredOverriddenKeyVar(t *testing.T) {
+	var s struct {
+		Foo string `envconfig:"BAR" required:"true" no_pfx:"key"`
 	}
 
 	os.Clearenv()

@@ -118,13 +118,34 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 				info.Key = strings.Join(name, "_")
 			}
 		}
-		if info.Alt != "" {
-			info.Key = info.Alt
-		}
 		if prefix != "" {
 			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
 		}
+
+		// override default env-variable name with an envconfig tag
+		if info.Alt != "" {
+			if prefix != "" {
+				noPfxPlace := ftype.Tag.Get("no_pfx")
+				if noPfxPlace == "key" {
+					// now the key name is overridden and prefixed
+					// alt name is not used
+					info.Key = info.Alt
+					info.Alt = ""
+				} else if noPfxPlace == "alt" {
+					// now the key name is overridden and prefixed
+					// and alt name is overridden name without prefix
+					info.Key = fmt.Sprintf("%s_%s", prefix, info.Alt)
+				} else {
+					// now key name is overridden and prefixed
+					// but alt is the prev key name (source struct field name) with prefix
+					prefixedStructFieldName := info.Key
+					info.Key = fmt.Sprintf("%s_%s", prefix, info.Alt)
+					info.Alt = prefixedStructFieldName
+				}
+			}
+		}
 		info.Key = strings.ToUpper(info.Key)
+		info.Alt = strings.ToUpper(info.Alt)
 		infos = append(infos, info)
 
 		if f.Kind() == reflect.Struct {
@@ -204,9 +225,6 @@ func Process(prefix string, spec interface{}) error {
 		if !ok && def == "" {
 			if isTrue(req) {
 				key := info.Key
-				if info.Alt != "" {
-					key = info.Alt
-				}
 				return fmt.Errorf("required key %s missing value", key)
 			}
 			continue
