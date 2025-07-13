@@ -183,6 +183,9 @@ func CheckDisallowed(prefix string, spec any) error {
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec any) error {
 	infos, err := gatherInfo(prefix, spec)
+	if err != nil {
+		return err
+	}
 
 	for _, info := range infos {
 
