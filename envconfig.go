@@ -227,7 +227,7 @@ func Process(prefix string, spec any) error {
 		}
 	}
 
-	return err
+	return nil
 }
 
 // MustProcess is the same as Process but panics if an error occurs
