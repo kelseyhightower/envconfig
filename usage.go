@@ -110,7 +110,7 @@ func toTypeDescription(t reflect.Type) string {
 }
 
 // Usage writes usage information to stdout using the default header and table format
-func Usage(prefix string, spec interface{}) error {
+func Usage(prefix string, spec any) error {
 	// The default is to output the usage information as a table
 	// Create tabwriter instance to support table output
 	tabs := tabwriter.NewWriter(os.Stdout, 1, 0, 4, ' ', 0)
@@ -121,7 +121,7 @@ func Usage(prefix string, spec interface{}) error {
 }
 
 // Usagef writes usage information to the specified io.Writer using the specified template specification
-func Usagef(prefix string, spec interface{}, out io.Writer, format string) error {
+func Usagef(prefix string, spec any, out io.Writer, format string) error {
 
 	// Specify the default usage template functions
 	functions := template.FuncMap{
@@ -153,7 +153,7 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 }
 
 // Usaget writes usage information to the specified io.Writer using the specified template
-func Usaget(prefix string, spec interface{}, out io.Writer, tmpl *template.Template) error {
+func Usaget(prefix string, spec any, out io.Writer, tmpl *template.Template) error {
 	// gather first
 	infos, err := gatherInfo(prefix, spec)
 	if err != nil {
