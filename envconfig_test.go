@@ -70,6 +70,8 @@ type Specification struct {
 	MapField     map[string]string `default:"one:two,three:four"`
 	UrlValue     CustomURL
 	UrlPointer   *CustomURL
+	TrimmedVar   string `envconfig:"TRIMMED" trim:"true"`
+	UntrimmedVar string `envconfig:"UNTRIMMED"`
 }
 
 type Embedded struct {
@@ -111,6 +113,8 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_TRIMMED", " trimmed\t  \n")
+	os.Setenv("ENV_CONFIG_UNTRIMMED", "untrimmed  \n")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -216,6 +220,14 @@ func TestProcess(t *testing.T) {
 
 	if *s.UrlPointer.Value != *u {
 		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
+	}
+
+	if s.TrimmedVar != "trimmed" {
+		t.Errorf("expected %s, got %s", "trimmed", s.TrimmedVar)
+	}
+
+	if s.UntrimmedVar != "untrimmed  \n" {
+		t.Errorf("expected %s, got %s", "untrimmed  \n", s.UntrimmedVar)
 	}
 }
 
