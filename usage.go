@@ -111,18 +111,27 @@ func toTypeDescription(t reflect.Type) string {
 
 // Usage writes usage information to stdout using the default header and table format
 func Usage(prefix string, spec interface{}) error {
+	return UsageWithOptions(prefix, spec, Options{})
+}
+
+// UsageWithOptions is like Usage() but with specified options.
+func UsageWithOptions(prefix string, spec interface{}, options Options) error {
 	// The default is to output the usage information as a table
 	// Create tabwriter instance to support table output
 	tabs := tabwriter.NewWriter(os.Stdout, 1, 0, 4, ' ', 0)
 
-	err := Usagef(prefix, spec, tabs, DefaultTableFormat)
+	err := UsagefWithOptions(prefix, spec, tabs, DefaultTableFormat, options)
 	tabs.Flush()
 	return err
 }
 
 // Usagef writes usage information to the specified io.Writer using the specified template specification
 func Usagef(prefix string, spec interface{}, out io.Writer, format string) error {
+	return UsagefWithOptions(prefix, spec, out, format, Options{})
+}
 
+// UsagefWithOptions is like Usagef() but with specified options.
+func UsagefWithOptions(prefix string, spec interface{}, out io.Writer, format string, options Options) error {
 	// Specify the default usage template functions
 	functions := template.FuncMap{
 		"usage_key":         func(v varInfo) string { return v.Key },
@@ -149,13 +158,18 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 		return err
 	}
 
-	return Usaget(prefix, spec, out, tmpl)
+	return UsagetWithOptions(prefix, spec, out, tmpl, options)
 }
 
 // Usaget writes usage information to the specified io.Writer using the specified template
 func Usaget(prefix string, spec interface{}, out io.Writer, tmpl *template.Template) error {
+	return UsagetWithOptions(prefix, spec, out, tmpl, Options{})
+}
+
+// UsagetWithOptions is like Usaget() but with specified options.
+func UsagetWithOptions(prefix string, spec interface{}, out io.Writer, tmpl *template.Template, options Options) error {
 	// gather first
-	infos, err := gatherInfo(prefix, spec)
+	infos, err := gatherInfo(prefix, spec, options)
 	if err != nil {
 		return err
 	}

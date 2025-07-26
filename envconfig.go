@@ -19,8 +19,15 @@ import (
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
-var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
-var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
+var (
+	gatherRegexp  = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
+	acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
+)
+
+// Options to change default parsing.
+type Options struct {
+	SplitWords bool
+}
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -58,7 +65,7 @@ type varInfo struct {
 }
 
 // GatherInfo gathers information about the specified struct
-func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
+func gatherInfo(prefix string, spec interface{}, options Options) ([]varInfo, error) {
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -102,8 +109,10 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 		// Default to the field name as the env var name (will be upcased)
 		info.Key = info.Name
 
+		tagSplitWords := ftype.Tag.Get("split_words")
+
 		// Best effort to un-pick camel casing as separate words
-		if isTrue(ftype.Tag.Get("split_words")) {
+		if isTrue(tagSplitWords) || options.SplitWords && !isFalse(tagSplitWords) {
 			words := gatherRegexp.FindAllStringSubmatch(ftype.Name, -1)
 			if len(words) > 0 {
 				var name []string
@@ -136,7 +145,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 				}
 
 				embeddedPtr := f.Addr().Interface()
-				embeddedInfos, err := gatherInfo(innerPrefix, embeddedPtr)
+				embeddedInfos, err := gatherInfo(innerPrefix, embeddedPtr, options)
 				if err != nil {
 					return nil, err
 				}
@@ -153,7 +162,12 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 // that we don't know how or want to parse. This is likely only meaningful with
 // a non-empty prefix.
 func CheckDisallowed(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
+	return CheckDisallowedWithOptions(prefix, spec, Options{})
+}
+
+// CheckDisallowedWithOptions is like CheckDisallowed() but with specified options.
+func CheckDisallowedWithOptions(prefix string, spec interface{}, options Options) error {
+	infos, err := gatherInfo(prefix, spec, options)
 	if err != nil {
 		return err
 	}
@@ -182,7 +196,12 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
+	return ProcessWithOptions(prefix, spec, Options{})
+}
+
+// ProcessWithOptions is like Process() but with specified options.
+func ProcessWithOptions(prefix string, spec interface{}, options Options) error {
+	infos, err := gatherInfo(prefix, spec, options)
 
 	for _, info := range infos {
 
@@ -229,7 +248,12 @@ func Process(prefix string, spec interface{}) error {
 
 // MustProcess is the same as Process but panics if an error occurs
 func MustProcess(prefix string, spec interface{}) {
-	if err := Process(prefix, spec); err != nil {
+	MustProcessWithOptions(prefix, spec, Options{})
+}
+
+// MustProcessWithOptions is like MustProcess() but with specified options.
+func MustProcessWithOptions(prefix string, spec interface{}, options Options) {
+	if err := ProcessWithOptions(prefix, spec, options); err != nil {
 		panic(err)
 	}
 }
@@ -379,4 +403,13 @@ func binaryUnmarshaler(field reflect.Value) (b encoding.BinaryUnmarshaler) {
 func isTrue(s string) bool {
 	b, _ := strconv.ParseBool(s)
 	return b
+}
+
+func isFalse(s string) bool {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return false
+	}
+
+	return !b
 }
