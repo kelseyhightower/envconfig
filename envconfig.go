@@ -129,7 +129,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
+			if decoderFrom(f) == nil && setterFrom(f) == nil && genericSetterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
 				innerPrefix := prefix
 				if !ftype.Anonymous {
 					innerPrefix = info.Key
@@ -255,6 +255,10 @@ func processField(value string, field reflect.Value) error {
 		return b.UnmarshalBinary([]byte(value))
 	}
 
+	if generic := genericSetterFrom(field); generic != nil {
+		return generic.DecodeAndSet(value)
+	}
+
 	if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 		if field.IsNil() {
@@ -353,6 +357,40 @@ func interfaceFrom(field reflect.Value, fn func(interface{}, *bool)) {
 	fn(field.Interface(), &ok)
 	if !ok && field.CanAddr() {
 		fn(field.Addr().Interface(), &ok)
+	}
+}
+
+// genericSetter handles fields with a method like Set(value T) by decoding into a new T and then calling Set.
+type genericSetter struct {
+	parameter reflect.Value
+	doSet     func()
+}
+
+func (g *genericSetter) DecodeAndSet(value string) error {
+	err := processField(value, g.parameter)
+	if err != nil {
+		return err
+	}
+	g.doSet()
+	return nil
+}
+
+func genericSetterFrom(field reflect.Value) *genericSetter {
+	if !field.CanAddr() {
+		return nil
+	}
+	fieldPtr := field.Addr()
+	method, ok := fieldPtr.Type().MethodByName("Set")
+	// Check for signature Set(value T) with concrete type T. The receiver is the first In, the parameter second.
+	if !ok || method.Type.NumIn() != 2 || method.Type.NumOut() != 0 || method.Type.In(1).Kind() == reflect.Interface {
+		return nil
+	}
+	parameter := reflect.New(method.Type.In(1)).Elem()
+	return &genericSetter{
+		parameter: parameter,
+		doSet: func() {
+			method.Func.Call([]reflect.Value{fieldPtr, parameter})
+		},
 	}
 }
 

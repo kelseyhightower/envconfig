@@ -227,3 +227,7 @@ type SMSProviderConfig struct {
 
 Also, envconfig will use a `Set(string) error` method like from the
 [flag.Value](https://godoc.org/flag#Value) interface if implemented.
+
+If a field implements a method like `Set(value T)`, envconfig will attempt to decode
+into a new `T` using any of the above mechanisms and then call `Set`.
+See [envconfig_1.18_test.go](envconfig_1.18_test.go) for examples.
