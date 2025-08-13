@@ -70,6 +70,7 @@ type Specification struct {
 	MapField     map[string]string `default:"one:two,three:four"`
 	UrlValue     CustomURL
 	UrlPointer   *CustomURL
+	MapFieldWithColon map[string]string
 }
 
 type Embedded struct {
@@ -111,6 +112,7 @@ func TestProcess(t *testing.T) {
 	os.Setenv("ENV_CONFIG_MULTI_WORD_ACR_WITH_AUTO_SPLIT", "25")
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
+	os.Setenv("ENV_CONFIG_MAPFIELDWITHCOLON", "name:envconfig,url:https://github.com/kelseyhightower/envconfig")
 	err := Process("env_config", &s)
 	if err != nil {
 		t.Error(err.Error())
@@ -216,6 +218,13 @@ func TestProcess(t *testing.T) {
 
 	if *s.UrlPointer.Value != *u {
 		t.Errorf("expected %q, got %q", u, s.UrlPointer.Value.String())
+	}
+
+	if s.MapFieldWithColon["name"] != "envconfig" {
+		t.Errorf("expected %q, got %q", "envconfig", s.MapFieldWithColon["name"])
+	}
+	if s.MapFieldWithColon["url"] != "https://github.com/kelseyhightower/envconfig" {
+		t.Errorf("expected %q, got %q", "https://github.com/kelseyhightower/envconfig", s.MapFieldWithColon["url"])
 	}
 }
 
