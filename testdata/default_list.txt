@@ -141,6 +141,11 @@ ENV_CONFIG_REQUIREDDEFAULT
 ..[type]........String
 ..[default].....foo2bar
 ..[required]....true
+ENV_CONFIG_ONERR
+..[description].
+..[type]........True.or.False
+..[default].....
+..[required]....
 ENV_CONFIG_OUTER_INNER
 ..[description].
 ..[type]........String
