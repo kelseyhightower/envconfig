@@ -792,6 +792,35 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 	}
 }
 
+func TestUnexportedField(t *testing.T) {
+	os.Clearenv()
+
+	_ = os.Setenv("ENV_CONFIG_FOO", "foo")
+	_ = os.Setenv("ENV_CONFIG_BAR", "100")
+	_ = os.Setenv("ENV_CONFIG_BAZ", "5,10,15")
+
+	type unexported struct {
+		foo string  `envconfig:"ENV_CONFIG_FOO"`
+		bar float64 `envconfig:"ENV_CONFIG_BAR"`
+		baz []int `envconfig:"ENV_CONFIG_BAZ"`
+	}
+
+	s := unexported{}
+	err := Process("env_config", &s)
+	if err != nil {
+		t.Error("error when parsing unexported fields")
+	}
+	if s.foo != "foo" {
+		t.Error("unexported string")
+	}
+	if s.bar != 100 {
+		t.Error("unexported int")
+	}
+	if s.baz[0] != 5 && s.baz[1] != 10 && s.baz[2] != 15 {
+		t.Error("unexported slice of ints")
+	}
+}
+
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
 		Foo string `envconfig:"BAR" required:"true"`

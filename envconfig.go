@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 )
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
@@ -73,7 +74,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 	// over allocate an info array, we will extend if needed later
 	infos := make([]varInfo, 0, s.NumField())
 	for i := 0; i < s.NumField(); i++ {
-		f := s.Field(i)
+		f :=  reflect.NewAt(s.Field(i).Type(), unsafe.Pointer(s.Field(i).UnsafeAddr())).Elem()
 		ftype := typeOfSpec.Field(i)
 		if !f.CanSet() || isTrue(ftype.Tag.Get("ignored")) {
 			continue
