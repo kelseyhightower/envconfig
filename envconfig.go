@@ -180,8 +180,53 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	return nil
 }
 
-// Process populates the specified struct based on environment variables
+// NewProcessor creates a new default processor
+func NewProcessor() *Processor {
+	return &Processor{keysep:":", mapsep:",", slicesep:","}
+}
+
+// Processor type holds the settings that change the type parsing
+type Processor struct {
+	keysep string
+	mapsep string
+	slicesep string
+}
+
+// DefaultProcessor is the default processor the top-level funcs use
+var DefaultProcessor *Processor = &Processor{":", ",", ","}
+
+// WithKeySepChar changes what separates keys from values
+// The DefaultProcessor uses ":"
+func (p *Processor) WithKeySepChar(sep string) *Processor {
+	p.keysep = sep
+	return p
+}
+// WithMapSepChar changes what separates key,value pairs from each other
+// The DefaultProcessor uses ","
+// Note this conflicts with the default slice separator
+func (p *Processor) WithMapSepChar(sep string) *Processor {
+	p.mapsep = sep
+	return p
+}
+// WithSliceSepChar changes what separates slice elements from each other
+// The DefaultProcessor uses ","
+// Note this conflicts with the default map separator
+func (p *Processor) WithSliceSepChar(sep string) *Processor {
+	p.slicesep = sep
+	return p
+}
+
+// Process calls DefaultProcessor.Process; see method
 func Process(prefix string, spec interface{}) error {
+	return DefaultProcessor.Process(prefix, spec)
+}
+// MustProcess calls DefaultProcessor.MustProcess; see method
+func MustProcess(prefix string, spec interface{}) {
+	DefaultProcessor.MustProcess(prefix, spec)
+}
+
+// Process populates the specified struct based on environment variables
+func (p Processor) Process(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
@@ -212,7 +257,7 @@ func Process(prefix string, spec interface{}) error {
 			continue
 		}
 
-		err = processField(value, info.Field)
+		err = p.processField(value, info.Field)
 		if err != nil {
 			return &ParseError{
 				KeyName:   info.Key,
@@ -228,13 +273,13 @@ func Process(prefix string, spec interface{}) error {
 }
 
 // MustProcess is the same as Process but panics if an error occurs
-func MustProcess(prefix string, spec interface{}) {
-	if err := Process(prefix, spec); err != nil {
+func (p Processor) MustProcess(prefix string, spec interface{}) {
+	if err := p.Process(prefix, spec); err != nil {
 		panic(err)
 	}
 }
 
-func processField(value string, field reflect.Value) error {
+func (p Processor) processField(value string, field reflect.Value) error {
 	typ := field.Type()
 
 	decoder := decoderFrom(field)
@@ -306,10 +351,10 @@ func processField(value string, field reflect.Value) error {
 		if typ.Elem().Kind() == reflect.Uint8 {
 			sl = reflect.ValueOf([]byte(value))
 		} else if strings.TrimSpace(value) != "" {
-			vals := strings.Split(value, ",")
+			vals := strings.Split(value, p.slicesep)
 			sl = reflect.MakeSlice(typ, len(vals), len(vals))
 			for i, val := range vals {
-				err := processField(val, sl.Index(i))
+				err := p.processField(val, sl.Index(i))
 				if err != nil {
 					return err
 				}
@@ -319,19 +364,19 @@ func processField(value string, field reflect.Value) error {
 	case reflect.Map:
 		mp := reflect.MakeMap(typ)
 		if strings.TrimSpace(value) != "" {
-			pairs := strings.Split(value, ",")
+			pairs := strings.Split(value, p.mapsep)
 			for _, pair := range pairs {
-				kvpair := strings.Split(pair, ":")
+				kvpair := strings.Split(pair, p.keysep)
 				if len(kvpair) != 2 {
 					return fmt.Errorf("invalid map item: %q", pair)
 				}
 				k := reflect.New(typ.Key()).Elem()
-				err := processField(kvpair[0], k)
+				err := p.processField(kvpair[0], k)
 				if err != nil {
 					return err
 				}
 				v := reflect.New(typ.Elem()).Elem()
-				err = processField(kvpair[1], v)
+				err = p.processField(kvpair[1], v)
 				if err != nil {
 					return err
 				}
