@@ -64,12 +64,14 @@ type Specification struct {
 		Property            string `envconfig:"inner"`
 		PropertyWithDefault string `default:"fuzzybydefault"`
 	} `envconfig:"outer"`
-	AfterNested  string
-	DecodeStruct HonorDecodeInStruct `envconfig:"honor"`
-	Datetime     time.Time
-	MapField     map[string]string `default:"one:two,three:four"`
-	UrlValue     CustomURL
-	UrlPointer   *CustomURL
+	AfterNested      string
+	DecodeStruct     HonorDecodeInStruct `envconfig:"honor"`
+	Datetime         time.Time
+	MapField         map[string]string `default:"one:two,three:four"`
+	UrlValue         CustomURL
+	UrlPointer       *CustomURL
+	NamedSliceValue  NamedSlice
+	CustomSliceValue SliceWithUnmarshal
 }
 
 type Embedded struct {
@@ -84,6 +86,14 @@ type Embedded struct {
 type EmbeddedButIgnored struct {
 	FirstEmbeddedButIgnored  string
 	SecondEmbeddedButIgnored string
+}
+
+type NamedSlice []int8
+
+type SliceWithUnmarshal []int8
+
+func (cs *SliceWithUnmarshal) UnmarshalText(text []byte) error {
+	return nil
 }
 
 func TestProcess(t *testing.T) {

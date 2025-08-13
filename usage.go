@@ -56,6 +56,10 @@ func implementsInterface(t reflect.Type) bool {
 
 // toTypeDescription converts Go types into a human readable description
 func toTypeDescription(t reflect.Type) string {
+	if implementsInterface(t) && t.Name() != "" {
+		return t.Name()
+	}
+
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
@@ -71,9 +75,6 @@ func toTypeDescription(t reflect.Type) string {
 	case reflect.Ptr:
 		return toTypeDescription(t.Elem())
 	case reflect.Struct:
-		if implementsInterface(t) && t.Name() != "" {
-			return t.Name()
-		}
 		return ""
 	case reflect.String:
 		name := t.Name()
