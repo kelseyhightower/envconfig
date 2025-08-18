@@ -338,7 +338,16 @@ func processField(value string, field reflect.Value) error {
 				mp.SetMapIndex(k, v)
 			}
 		}
-		field.Set(mp)
+		if field.IsNil() {
+			field.Set(mp)
+		} else {
+			iter := mp.MapRange()
+			for iter.Next() {
+				field.SetMapIndex(iter.Key(), iter.Value())
+			}
+		}
+	case reflect.Interface:
+		field.Set(reflect.ValueOf(interface{}(value)))
 	}
 
 	return nil
