@@ -207,6 +207,8 @@ func Process(prefix string, spec interface{}) error {
 				if info.Alt != "" {
 					key = info.Alt
 				}
+				clearSpec(infos)
+
 				return fmt.Errorf("required key %s missing value", key)
 			}
 			continue
@@ -225,6 +227,12 @@ func Process(prefix string, spec interface{}) error {
 	}
 
 	return err
+}
+
+func clearSpec(infos []varInfo) {
+	for _, info := range infos {
+		info.Field.Set(reflect.Zero(info.Field.Type()))
+	}
 }
 
 // MustProcess is the same as Process but panics if an error occurs
