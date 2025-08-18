@@ -58,6 +58,9 @@ func implementsInterface(t reflect.Type) bool {
 func toTypeDescription(t reflect.Type) string {
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
+		if t.Name() != "" {
+			return t.Name()
+		}
 		if t.Elem().Kind() == reflect.Uint8 {
 			return "String"
 		}
