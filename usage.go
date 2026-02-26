@@ -142,6 +142,7 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 			}
 			return req, nil
 		},
+		"var_exists": func(v varInfo) bool { return v.process() == nil },
 	}
 
 	tmpl, err := template.New("envconfig").Funcs(functions).Parse(format)

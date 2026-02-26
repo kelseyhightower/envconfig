@@ -15,7 +15,7 @@ import (
 	"text/tabwriter"
 )
 
-var testUsageTableResult, testUsageListResult, testUsageCustomResult, testUsageBadFormatResult string
+var testUsageTableResult, testUsageListResult, testUsageCustomResult, testUsageBadFormatResult, testVarExistsResult string
 
 func TestMain(m *testing.M) {
 
@@ -43,6 +43,12 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	testUsageBadFormatResult = string(data)
+
+	data, err = ioutil.ReadFile("testdata/var_exists.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	testVarExistsResult = string(data)
 
 	retCode := m.Run()
 	os.Exit(retCode)
@@ -152,4 +158,15 @@ func TestUsageBadFormat(t *testing.T) {
 		t.Error(err.Error())
 	}
 	compareUsage(testUsageBadFormatResult, buf.String(), t)
+}
+
+func TestVarExists(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	buf := new(bytes.Buffer)
+	err := Usagef("env_config", &s, buf, "{{range .}}{{usage_key .}}={{var_exists .}}\n{{end}}")
+	if err != nil {
+		t.Error(err.Error())
+	}
+	compareUsage(testVarExistsResult, buf.String(), t)
 }
