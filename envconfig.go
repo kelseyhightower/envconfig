@@ -20,7 +20,7 @@ import (
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
 
 var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
-var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
+var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]{2,})")
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
