@@ -145,7 +145,7 @@ func TestUsageUnknownKeyFormat(t *testing.T) {
 func TestUsageBadFormat(t *testing.T) {
 	var s Specification
 	os.Clearenv()
-	// If you don't use two {{}} then you get a lieteral
+	// If you don't use two {{}} then you get a literal
 	buf := new(bytes.Buffer)
 	err := Usagef("env_config", &s, buf, "{{range .}}{.Key}\n{{end}}")
 	if err != nil {
