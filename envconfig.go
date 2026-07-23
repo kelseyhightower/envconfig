@@ -321,7 +321,8 @@ func processField(value string, field reflect.Value) error {
 		if strings.TrimSpace(value) != "" {
 			pairs := strings.Split(value, ",")
 			for _, pair := range pairs {
-				kvpair := strings.Split(pair, ":")
+				// SplitN keeps colons inside the value (e.g. url:http://host:8080).
+				kvpair := strings.SplitN(pair, ":", 2)
 				if len(kvpair) != 2 {
 					return fmt.Errorf("invalid map item: %q", pair)
 				}

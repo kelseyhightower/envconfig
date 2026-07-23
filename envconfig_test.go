@@ -862,3 +862,20 @@ func BenchmarkGatherInfo(b *testing.B) {
 		gatherInfo("env_config", &s)
 	}
 }
+
+func TestProcessMapValueWithColons(t *testing.T) {
+	var s struct {
+		M map[string]string `envconfig:"MAPCOLS"`
+	}
+	os.Setenv("MAPCOLS", "url:http://example.com:8080,plain:val")
+	defer os.Unsetenv("MAPCOLS")
+	if err := Process("", &s); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.M["url"]; got != "http://example.com:8080" {
+		t.Fatalf("url: got %q", got)
+	}
+	if got := s.M["plain"]; got != "val" {
+		t.Fatalf("plain: got %q", got)
+	}
+}
