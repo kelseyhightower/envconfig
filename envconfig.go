@@ -151,7 +151,8 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 
 // CheckDisallowed checks that no environment variables with the prefix are set
 // that we don't know how or want to parse. This is likely only meaningful with
-// a non-empty prefix.
+// a non-empty prefix. Companion KEY_FILE variables used by the Docker/Kubernetes
+// secrets convention are treated as allowed for known keys.
 func CheckDisallowed(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
 	if err != nil {
@@ -161,6 +162,7 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	vars := make(map[string]struct{})
 	for _, info := range infos {
 		vars[info.Key] = struct{}{}
+		vars[info.Key+"_FILE"] = struct{}{}
 	}
 
 	if prefix != "" {
@@ -180,19 +182,59 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	return nil
 }
 
-// Process populates the specified struct based on environment variables
+// lookupValue looks up key in the environment. If key is unset or empty, it
+// checks key_FILE for a filesystem path and reads the file contents (the
+// Docker/Kubernetes secrets convention). Trailing newlines are trimmed from
+// file contents. A non-empty environment variable takes precedence over its
+// _FILE counterpart.
+func lookupValue(key string) (string, bool, error) {
+	// `os.Getenv` cannot differentiate between an explicitly set empty value
+	// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
+	// but it is only available in go1.5 or newer. We're using Go build tags
+	// here to use os.LookupEnv for >=go1.5
+	value, ok := lookupEnv(key)
+	if ok && value != "" {
+		return value, true, nil
+	}
+
+	path, pathOK := lookupEnv(key + "_FILE")
+	if pathOK && path != "" {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", false, fmt.Errorf("envconfig.Process: reading %s: %w", key+"_FILE", err)
+		}
+		// Secret stores and editors commonly append a trailing newline.
+		return strings.TrimRight(string(data), "\r\n"), true, nil
+	}
+
+	return value, ok, nil
+}
+
+// Process populates the specified struct based on environment variables.
+//
+// When an environment variable is unset or empty, Process also checks for a
+// companion variable with a _FILE suffix (for example, DB_PASSWORD_FILE).
+// When that companion is set, its value is treated as a filesystem path; the
+// file contents are read and used as the configuration value after trailing
+// newlines are trimmed. This matches the Docker and Kubernetes secrets
+// convention. A non-empty environment variable takes precedence over its
+// _FILE counterpart.
 func Process(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
+	if err != nil {
+		return err
+	}
 
 	for _, info := range infos {
-
-		// `os.Getenv` cannot differentiate between an explicitly set empty value
-		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
-		// but it is only available in go1.5 or newer. We're using Go build tags
-		// here to use os.LookupEnv for >=go1.5
-		value, ok := lookupEnv(info.Key)
+		value, ok, lookupErr := lookupValue(info.Key)
+		if lookupErr != nil {
+			return lookupErr
+		}
 		if !ok && info.Alt != "" {
-			value, ok = lookupEnv(info.Alt)
+			value, ok, lookupErr = lookupValue(info.Alt)
+			if lookupErr != nil {
+				return lookupErr
+			}
 		}
 
 		def := info.Tags.Get("default")

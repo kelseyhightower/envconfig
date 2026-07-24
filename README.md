@@ -148,6 +148,32 @@ type Specification struct {
 Envconfig won't process a field with the "ignored" tag set to "true", even if a corresponding
 environment variable is set.
 
+## File-based secrets (`_FILE` convention)
+
+When an environment variable is unset or empty, envconfig also looks for a
+companion variable with a `_FILE` suffix. If that companion is set, its value is
+treated as a path to a file whose contents become the configuration value
+(trailing newlines are trimmed). This matches the [Docker secrets](https://docs.docker.com/engine/swarm/secrets/)
+and Kubernetes secret-mount pattern used by images such as Postgres and Redis.
+
+```Bash
+# Equivalent to export MYAPP_PASSWORD=secret
+export MYAPP_PASSWORD_FILE=/run/secrets/db_password
+```
+
+```Go
+type Specification struct {
+    Password string `required:"true"`
+}
+
+var s Specification
+err := envconfig.Process("myapp", &s)
+// s.Password is the contents of /run/secrets/db_password
+```
+
+A non-empty environment variable takes precedence over its `_FILE` counterpart.
+If the file cannot be read, `Process` returns an error.
+
 ## Supported Struct Field Types
 
 envconfig supports these struct field types:

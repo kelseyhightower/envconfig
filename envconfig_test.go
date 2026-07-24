@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -806,6 +807,142 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 
 	if !strings.Contains(err.Error(), " BAR ") {
 		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
+	}
+}
+
+func writeSecretFile(t *testing.T, name, contents string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write secret file: %v", err)
+	}
+	return path
+}
+
+func TestProcessFileSuffix(t *testing.T) {
+	var s struct {
+		Password string
+	}
+	os.Clearenv()
+	path := writeSecretFile(t, "password", "s3cr3t\n")
+	os.Setenv("ENV_CONFIG_PASSWORD_FILE", path)
+
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Password != "s3cr3t" {
+		t.Errorf("expected %q, got %q", "s3cr3t", s.Password)
+	}
+}
+
+func TestProcessFileSuffixEnvTakesPrecedence(t *testing.T) {
+	var s struct {
+		Password string
+	}
+	os.Clearenv()
+	path := writeSecretFile(t, "password", "from-file")
+	os.Setenv("ENV_CONFIG_PASSWORD", "from-env")
+	os.Setenv("ENV_CONFIG_PASSWORD_FILE", path)
+
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Password != "from-env" {
+		t.Errorf("expected %q, got %q", "from-env", s.Password)
+	}
+}
+
+func TestProcessFileSuffixEmptyEnvFallsBackToFile(t *testing.T) {
+	var s struct {
+		Password string
+	}
+	os.Clearenv()
+	path := writeSecretFile(t, "password", "from-file\r\n")
+	os.Setenv("ENV_CONFIG_PASSWORD", "")
+	os.Setenv("ENV_CONFIG_PASSWORD_FILE", path)
+
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Password != "from-file" {
+		t.Errorf("expected %q, got %q", "from-file", s.Password)
+	}
+}
+
+func TestProcessFileSuffixRequired(t *testing.T) {
+	var s struct {
+		Password string `required:"true"`
+	}
+	os.Clearenv()
+	path := writeSecretFile(t, "password", "required-secret")
+	os.Setenv("ENV_CONFIG_PASSWORD_FILE", path)
+
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Password != "required-secret" {
+		t.Errorf("expected %q, got %q", "required-secret", s.Password)
+	}
+}
+
+func TestProcessFileSuffixMissingFile(t *testing.T) {
+	var s struct {
+		Password string
+	}
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_PASSWORD_FILE", filepath.Join(t.TempDir(), "does-not-exist"))
+
+	err := Process("env_config", &s)
+	if err == nil {
+		t.Fatal("expected error reading missing secret file")
+	}
+	if !strings.Contains(err.Error(), "ENV_CONFIG_PASSWORD_FILE") {
+		t.Errorf("expected error to mention ENV_CONFIG_PASSWORD_FILE, got %v", err)
+	}
+}
+
+func TestProcessFileSuffixAlt(t *testing.T) {
+	var s struct {
+		Password string `envconfig:"DB_PASSWORD"`
+	}
+	os.Clearenv()
+	path := writeSecretFile(t, "db_password", "alt-secret\n")
+	os.Setenv("DB_PASSWORD_FILE", path)
+
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Password != "alt-secret" {
+		t.Errorf("expected %q, got %q", "alt-secret", s.Password)
+	}
+}
+
+func TestProcessFileSuffixDefaultWhenNoFile(t *testing.T) {
+	var s struct {
+		Password string `default:"fallback"`
+	}
+	os.Clearenv()
+
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Password != "fallback" {
+		t.Errorf("expected %q, got %q", "fallback", s.Password)
+	}
+}
+
+func TestCheckDisallowedAllowsFileSuffix(t *testing.T) {
+	var s struct {
+		Password string
+		Debug    bool
+	}
+	os.Clearenv()
+	path := writeSecretFile(t, "password", "secret")
+	os.Setenv("ENV_CONFIG_PASSWORD_FILE", path)
+	os.Setenv("ENV_CONFIG_DEBUG", "true")
+
+	if err := CheckDisallowed("env_config", &s); err != nil {
+		t.Errorf("expected no error for known KEY_FILE, got %s", err)
 	}
 }
 
