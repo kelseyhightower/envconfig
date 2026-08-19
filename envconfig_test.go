@@ -5,6 +5,7 @@
 package envconfig
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -310,6 +311,18 @@ func TestParseErrorSplitWords(t *testing.T) {
 func TestErrInvalidSpecification(t *testing.T) {
 	m := make(map[string]string)
 	err := Process("env_config", &m)
+	if err != ErrInvalidSpecification {
+		t.Errorf("expected %v, got %v", ErrInvalidSpecification, err)
+	}
+
+	var notPointer Specification
+	err = Process("env_config", notPointer)
+	if err != ErrInvalidSpecification {
+		t.Errorf("expected %v, got %v", ErrInvalidSpecification, err)
+	}
+
+	var notStruct int = 123
+	err = Process("env_config", notStruct)
 	if err != ErrInvalidSpecification {
 		t.Errorf("expected %v, got %v", ErrInvalidSpecification, err)
 	}
@@ -860,5 +873,19 @@ func BenchmarkGatherInfo(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var s Specification
 		gatherInfo("env_config", &s)
+	}
+}
+
+func TestParseErrorString(t *testing.T) {
+	err := &ParseError{
+		KeyName:   "MY_KEY",
+		FieldName: "MyField",
+		TypeName:  "int",
+		Value:     "abc",
+		Err:       errors.New("invalid syntax"),
+	}
+	expected := "envconfig.Process: assigning MY_KEY to MyField: converting 'abc' to type int. details: invalid syntax"
+	if err.Error() != expected {
+		t.Errorf("expected %q, got %q", expected, err.Error())
 	}
 }
