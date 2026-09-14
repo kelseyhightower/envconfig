@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -380,6 +379,10 @@ func TestRequiredMissing(t *testing.T) {
 	err := Process("env_config", &s)
 	if err == nil {
 		t.Error("no failure when missing required variable")
+	}
+	want := "required key ENV_CONFIG_REQUIREDVAR missing value"
+	if err == nil || err.Error() != want {
+		t.Errorf("expected %q, got %v", want, err)
 	}
 }
 
@@ -804,8 +807,23 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 		t.Error("no failure when missing required variable")
 	}
 
-	if !strings.Contains(err.Error(), " BAR ") {
-		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
+	want := "required key ENV_CONFIG_BAR missing value"
+	if err == nil || err.Error() != want {
+		t.Errorf("expected %q, got %v", want, err)
+	}
+}
+
+func TestErrorMessageForRequiredAltVarNoPrefix(t *testing.T) {
+	var s struct {
+		Foo string `envconfig:"BAR" required:"true"`
+	}
+
+	os.Clearenv()
+	err := Process("", &s)
+
+	want := "required key BAR missing value"
+	if err == nil || err.Error() != want {
+		t.Errorf("expected %q, got %v", want, err)
 	}
 }
 
