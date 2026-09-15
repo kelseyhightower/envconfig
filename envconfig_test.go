@@ -497,6 +497,19 @@ func TestEmptyMapFieldOverride(t *testing.T) {
 	}
 }
 
+func TestMapValueWithColon(t *testing.T) {
+	var s Specification
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
+	os.Setenv("ENV_CONFIG_MAPFIELD", "dev:https://foo.com,prod:https://bar.com")
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.MapField["dev"] != "https://foo.com" || s.MapField["prod"] != "https://bar.com" {
+		t.Errorf("got %#v", s.MapField)
+	}
+}
+
 func TestMustProcess(t *testing.T) {
 	var s Specification
 	os.Clearenv()
