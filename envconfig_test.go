@@ -702,6 +702,35 @@ func TestNestedStructVarName(t *testing.T) {
 	}
 }
 
+func TestProcessWithNestedSeparator(t *testing.T) {
+	type Database struct {
+		UserName string `split_words:"true"`
+	}
+	type Spec struct {
+		Database Database
+	}
+	os.Clearenv()
+	os.Setenv("MYAPP__DATABASE__USER_NAME", "alice")
+	var s Spec
+	if err := ProcessWith("myapp", &s, Options{NestedSeparator: "__"}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Database.UserName != "alice" {
+		t.Errorf("expected alice, got %q", s.Database.UserName)
+	}
+
+	// Default Process still uses a single underscore.
+	os.Clearenv()
+	os.Setenv("MYAPP_DATABASE_USER_NAME", "bob")
+	var s2 Spec
+	if err := Process("myapp", &s2); err != nil {
+		t.Fatal(err)
+	}
+	if s2.Database.UserName != "bob" {
+		t.Errorf("expected bob, got %q", s2.Database.UserName)
+	}
+}
+
 func TestTextUnmarshalerError(t *testing.T) {
 	var s Specification
 	os.Clearenv()

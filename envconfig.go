@@ -57,8 +57,28 @@ type varInfo struct {
 	Tags  reflect.StructTag
 }
 
+// Options configures ProcessWith. The zero value matches Process.
+type Options struct {
+	// NestedSeparator is inserted between the prefix, nested struct names, and
+	// field names when building environment variable keys. Empty means "_".
+	// Set to "__" to match tools that use a double underscore as hierarchy.
+	NestedSeparator string
+}
+
+func nestedSep(sep string) string {
+	if sep == "" {
+		return "_"
+	}
+	return sep
+}
+
 // GatherInfo gathers information about the specified struct
 func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
+	return gatherInfoSep(prefix, spec, "_")
+}
+
+func gatherInfoSep(prefix string, spec interface{}, sep string) ([]varInfo, error) {
+	sep = nestedSep(sep)
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -122,7 +142,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 			info.Key = info.Alt
 		}
 		if prefix != "" {
-			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
+			info.Key = prefix + sep + info.Key
 		}
 		info.Key = strings.ToUpper(info.Key)
 		infos = append(infos, info)
@@ -136,7 +156,7 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 				}
 
 				embeddedPtr := f.Addr().Interface()
-				embeddedInfos, err := gatherInfo(innerPrefix, embeddedPtr)
+				embeddedInfos, err := gatherInfoSep(innerPrefix, embeddedPtr, sep)
 				if err != nil {
 					return nil, err
 				}
@@ -182,7 +202,12 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
+	return ProcessWith(prefix, spec, Options{})
+}
+
+// ProcessWith is Process with Options. NestedSeparator defaults to "_".
+func ProcessWith(prefix string, spec interface{}, opt Options) error {
+	infos, err := gatherInfoSep(prefix, spec, opt.NestedSeparator)
 
 	for _, info := range infos {
 
