@@ -112,6 +112,15 @@ setting applied it will look for `MYAPP_AUTO_SPLIT_VAR`. Note that numbers
 will get globbed into the previous word. If the setting does not do the
 right thing, you may use a manual override.
 
+Nested structs are joined with `_` by default (`MYAPP_DATABASE_USER_NAME`).
+`ProcessWith` can use a different nested separator without changing
+`split_words` field splitting:
+
+```Go
+err := envconfig.ProcessWith("myapp", &s, envconfig.Options{NestedSeparator: "__"})
+// reads MYAPP__DATABASE__USER_NAME
+```
+
 Envconfig will process value for `ManualOverride1` by populating it with the
 value for `MYAPP_MANUAL_OVERRIDE_1`. Without this struct tag, it would have
 instead looked up `MYAPP_MANUALOVERRIDE1`. With the `split_words:"true"` tag
