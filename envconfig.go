@@ -237,6 +237,12 @@ func MustProcess(prefix string, spec interface{}) {
 func processField(value string, field reflect.Value) error {
 	typ := field.Type()
 
+	// Allocate nil pointers before Decode/Set/Unmarshal* so a nil pointer
+	// that implements those interfaces does not panic on a nil receiver.
+	if typ.Kind() == reflect.Ptr && field.IsNil() && field.CanSet() {
+		field.Set(reflect.New(typ.Elem()))
+	}
+
 	decoder := decoderFrom(field)
 	if decoder != nil {
 		return decoder.Decode(value)
