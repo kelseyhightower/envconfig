@@ -792,6 +792,32 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 	}
 }
 
+func TestNilPointerTextUnmarshaler(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("ENV_CONFIG_USERS", "foo,bar")
+	os.Setenv("ENV_CONFIG_USER", "baz")
+
+	var s struct {
+		Users []*textUnmarshalerString
+		User  *textUnmarshalerString
+	}
+	if err := Process("env_config", &s); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Users) != 2 {
+		t.Fatalf("Users: got %d elements, want 2", len(s.Users))
+	}
+	if s.Users[0] == nil || *s.Users[0] != "foo" {
+		t.Errorf("Users[0]: got %#v, want foo", s.Users[0])
+	}
+	if s.Users[1] == nil || *s.Users[1] != "bar" {
+		t.Errorf("Users[1]: got %#v, want bar", s.Users[1])
+	}
+	if s.User == nil || *s.User != "baz" {
+		t.Errorf("User: got %#v, want baz", s.User)
+	}
+}
+
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
 		Foo string `envconfig:"BAR" required:"true"`
@@ -807,6 +833,13 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	if !strings.Contains(err.Error(), " BAR ") {
 		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
 	}
+}
+
+type textUnmarshalerString string
+
+func (s *textUnmarshalerString) UnmarshalText(b []byte) error {
+	*s = textUnmarshalerString(b)
+	return nil
 }
 
 type bracketed string
