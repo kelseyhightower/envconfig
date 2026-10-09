@@ -688,6 +688,101 @@ func TestEmptyPrefixUsesFieldNames(t *testing.T) {
 	}
 }
 
+func TestEmptyPrefixWithoutLeadingUnderscore(t *testing.T) {
+	type Config struct {
+		Host     string
+		User     string
+		Password string
+		Port     int    `split_words:"true"`
+		AltKey   string `envconfig:"_custom_alt"`
+	}
+
+	os.Clearenv()
+	os.Setenv("HOST", "127.0.0.1")
+	os.Setenv("USER", "admin")
+	os.Setenv("PASSWORD", "secret")
+	os.Setenv("PORT", "8080")
+	os.Setenv("CUSTOM_ALT", "custom_val")
+
+	var cfg Config
+	err := Process("", &cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Host != "127.0.0.1" {
+		t.Errorf("expected Host to be '127.0.0.1', got %q", cfg.Host)
+	}
+	if cfg.User != "admin" {
+		t.Errorf("expected User to be 'admin', got %q", cfg.User)
+	}
+	if cfg.Password != "secret" {
+		t.Errorf("expected Password to be 'secret', got %q", cfg.Password)
+	}
+	if cfg.Port != 8080 {
+		t.Errorf("expected Port to be 8080, got %d", cfg.Port)
+	}
+	if cfg.AltKey != "custom_val" {
+		t.Errorf("expected AltKey to be 'custom_val', got %q", cfg.AltKey)
+	}
+
+	infos, err := gatherInfo("", &cfg)
+	if err != nil {
+		t.Fatalf("unexpected error gathering info: %v", err)
+	}
+	for _, info := range infos {
+		if strings.HasPrefix(info.Key, "_") {
+			t.Errorf("expected key %q to not start with a leading underscore", info.Key)
+		}
+	}
+}
+
+func TestEmptyPrefixNestedStructs(t *testing.T) {
+	type Database struct {
+		Host string
+		Port int
+	}
+	type AppConfig struct {
+		Database
+		NamedDB Database
+	}
+
+	os.Clearenv()
+	os.Setenv("HOST", "embedded-host")
+	os.Setenv("PORT", "5432")
+	os.Setenv("NAMEDDB_HOST", "named-host")
+	os.Setenv("NAMEDDB_PORT", "5433")
+
+	var app AppConfig
+	err := Process("", &app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if app.Database.Host != "embedded-host" {
+		t.Errorf("expected embedded Database.Host to be 'embedded-host', got %q", app.Database.Host)
+	}
+	if app.Database.Port != 5432 {
+		t.Errorf("expected embedded Database.Port to be 5432, got %d", app.Database.Port)
+	}
+	if app.NamedDB.Host != "named-host" {
+		t.Errorf("expected NamedDB.Host to be 'named-host', got %q", app.NamedDB.Host)
+	}
+	if app.NamedDB.Port != 5433 {
+		t.Errorf("expected NamedDB.Port to be 5433, got %d", app.NamedDB.Port)
+	}
+
+	infos, err := gatherInfo("", &app)
+	if err != nil {
+		t.Fatalf("unexpected error gathering info: %v", err)
+	}
+	for _, info := range infos {
+		if strings.HasPrefix(info.Key, "_") {
+			t.Errorf("expected key %q to not start with a leading underscore", info.Key)
+		}
+	}
+}
+
 func TestNestedStructVarName(t *testing.T) {
 	var s Specification
 	os.Clearenv()

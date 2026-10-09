@@ -125,6 +125,9 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
 		}
 		info.Key = strings.ToUpper(info.Key)
+		if prefix == "" {
+			info.Key = strings.TrimPrefix(info.Key, "_")
+		}
 		infos = append(infos, info)
 
 		if f.Kind() == reflect.Struct {
