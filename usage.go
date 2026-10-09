@@ -111,17 +111,27 @@ func toTypeDescription(t reflect.Type) string {
 
 // Usage writes usage information to stdout using the default header and table format
 func Usage(prefix string, spec interface{}) error {
+	return UsageWith(prefix, spec, Options{})
+}
+
+// UsageWith writes usage information to stdout using the default header and table format and provided Options
+func UsageWith(prefix string, spec interface{}, opt Options) error {
 	// The default is to output the usage information as a table
 	// Create tabwriter instance to support table output
 	tabs := tabwriter.NewWriter(os.Stdout, 1, 0, 4, ' ', 0)
 
-	err := Usagef(prefix, spec, tabs, DefaultTableFormat)
+	err := UsagefWith(prefix, spec, tabs, DefaultTableFormat, opt)
 	tabs.Flush()
 	return err
 }
 
 // Usagef writes usage information to the specified io.Writer using the specified template specification
 func Usagef(prefix string, spec interface{}, out io.Writer, format string) error {
+	return UsagefWith(prefix, spec, out, format, Options{})
+}
+
+// UsagefWith writes usage information to the specified io.Writer using the specified template specification and provided Options
+func UsagefWith(prefix string, spec interface{}, out io.Writer, format string, opt Options) error {
 
 	// Specify the default usage template functions
 	functions := template.FuncMap{
@@ -149,13 +159,18 @@ func Usagef(prefix string, spec interface{}, out io.Writer, format string) error
 		return err
 	}
 
-	return Usaget(prefix, spec, out, tmpl)
+	return UsagetWith(prefix, spec, out, tmpl, opt)
 }
 
 // Usaget writes usage information to the specified io.Writer using the specified template
 func Usaget(prefix string, spec interface{}, out io.Writer, tmpl *template.Template) error {
+	return UsagetWith(prefix, spec, out, tmpl, Options{})
+}
+
+// UsagetWith writes usage information to the specified io.Writer using the specified template and provided Options
+func UsagetWith(prefix string, spec interface{}, out io.Writer, tmpl *template.Template, opt Options) error {
 	// gather first
-	infos, err := gatherInfo(prefix, spec)
+	infos, err := gatherInfoSep(prefix, spec, opt.NestedSeparator)
 	if err != nil {
 		return err
 	}

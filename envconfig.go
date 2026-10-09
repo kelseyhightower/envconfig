@@ -50,15 +50,44 @@ func (e *ParseError) Error() string {
 
 // varInfo maintains information about the configuration variable
 type varInfo struct {
-	Name  string
-	Alt   string
-	Key   string
-	Field reflect.Value
-	Tags  reflect.StructTag
+	Name    string
+	Alt     string
+	Key     string
+	AltKeys []string
+	Field   reflect.Value
+	Tags    reflect.StructTag
+}
+
+// Options configures processing of environment variables.
+type Options struct {
+	// NestedSeparator is inserted between the prefix, nested struct names, and
+	// field names when building environment variable keys. Empty means "_".
+	// Set to "__" to support double underscore separators for nested structs.
+	NestedSeparator string
+}
+
+func nestedSep(sep string) string {
+	if sep == "" {
+		return "_"
+	}
+	return sep
 }
 
 // GatherInfo gathers information about the specified struct
 func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
+	return gatherInfoSep(prefix, spec, "_")
+}
+
+func gatherInfoSep(prefix string, spec interface{}, sep string) ([]varInfo, error) {
+	sep = nestedSep(sep)
+	var parts []string
+	if prefix != "" {
+		parts = []string{prefix}
+	}
+	return gatherInfoInternal(prefix, spec, sep, parts)
+}
+
+func gatherInfoInternal(prefix string, spec interface{}, sep string, parts []string) ([]varInfo, error) {
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr {
@@ -121,22 +150,37 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 		if info.Alt != "" {
 			info.Key = info.Alt
 		}
-		if prefix != "" {
-			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
+
+		fieldPart := info.Key
+		fieldParts := append(append([]string{}, parts...), fieldPart)
+
+		info.Key = strings.ToUpper(strings.Join(fieldParts, sep))
+
+		if len(fieldParts) > 1 {
+			altSep := "__"
+			if sep == "__" {
+				altSep = "_"
+			}
+			altKey := strings.ToUpper(strings.Join(fieldParts, altSep))
+			if altKey != info.Key {
+				info.AltKeys = []string{altKey}
+			}
 		}
-		info.Key = strings.ToUpper(info.Key)
+
 		infos = append(infos, info)
 
 		if f.Kind() == reflect.Struct {
 			// honor Decode if present
 			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil {
 				innerPrefix := prefix
+				innerParts := parts
 				if !ftype.Anonymous {
 					innerPrefix = info.Key
+					innerParts = fieldParts
 				}
 
 				embeddedPtr := f.Addr().Interface()
-				embeddedInfos, err := gatherInfo(innerPrefix, embeddedPtr)
+				embeddedInfos, err := gatherInfoInternal(innerPrefix, embeddedPtr, sep, innerParts)
 				if err != nil {
 					return nil, err
 				}
@@ -153,7 +197,13 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 // that we don't know how or want to parse. This is likely only meaningful with
 // a non-empty prefix.
 func CheckDisallowed(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
+	return CheckDisallowedWith(prefix, spec, Options{})
+}
+
+// CheckDisallowedWith is the same as CheckDisallowed but uses the provided Options.
+func CheckDisallowedWith(prefix string, spec interface{}, opt Options) error {
+	sep := nestedSep(opt.NestedSeparator)
+	infos, err := gatherInfoSep(prefix, spec, sep)
 	if err != nil {
 		return err
 	}
@@ -161,14 +211,18 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	vars := make(map[string]struct{})
 	for _, info := range infos {
 		vars[info.Key] = struct{}{}
+		for _, altKey := range info.AltKeys {
+			vars[altKey] = struct{}{}
+		}
 	}
 
+	prefixMatch := ""
 	if prefix != "" {
-		prefix = strings.ToUpper(prefix) + "_"
+		prefixMatch = strings.ToUpper(prefix) + sep
 	}
 
 	for _, env := range os.Environ() {
-		if !strings.HasPrefix(env, prefix) {
+		if prefixMatch != "" && !strings.HasPrefix(env, prefixMatch) {
 			continue
 		}
 		v := strings.SplitN(env, "=", 2)[0]
@@ -182,7 +236,15 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
-	infos, err := gatherInfo(prefix, spec)
+	return ProcessWith(prefix, spec, Options{})
+}
+
+// ProcessWith populates the specified struct based on environment variables using the provided Options.
+func ProcessWith(prefix string, spec interface{}, opt Options) error {
+	infos, err := gatherInfoSep(prefix, spec, opt.NestedSeparator)
+	if err != nil {
+		return err
+	}
 
 	for _, info := range infos {
 
@@ -193,6 +255,13 @@ func Process(prefix string, spec interface{}) error {
 		value, ok := lookupEnv(info.Key)
 		if !ok && info.Alt != "" {
 			value, ok = lookupEnv(info.Alt)
+		}
+		if !ok {
+			for _, altKey := range info.AltKeys {
+				if value, ok = lookupEnv(altKey); ok {
+					break
+				}
+			}
 		}
 
 		def := info.Tags.Get("default")
@@ -224,12 +293,17 @@ func Process(prefix string, spec interface{}) error {
 		}
 	}
 
-	return err
+	return nil
 }
 
 // MustProcess is the same as Process but panics if an error occurs
 func MustProcess(prefix string, spec interface{}) {
-	if err := Process(prefix, spec); err != nil {
+	MustProcessWith(prefix, spec, Options{})
+}
+
+// MustProcessWith is the same as ProcessWith but panics if an error occurs
+func MustProcessWith(prefix string, spec interface{}, opt Options) {
+	if err := ProcessWith(prefix, spec, opt); err != nil {
 		panic(err)
 	}
 }
