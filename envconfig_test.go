@@ -5,6 +5,7 @@
 package envconfig
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"net/url"
@@ -836,6 +837,181 @@ type setterStruct struct {
 func (ss *setterStruct) Set(value string) error {
 	ss.Inner = fmt.Sprintf("setterstruct{%q}", value)
 	return nil
+}
+
+func TestProcessWithNestedSeparator(t *testing.T) {
+	type Database struct {
+		UserName string `split_words:"true"`
+	}
+	type Spec struct {
+		Database Database
+	}
+	os.Clearenv()
+	os.Setenv("MYAPP__DATABASE__USER_NAME", "alice")
+	var s Spec
+	if err := ProcessWith("myapp", &s, Options{NestedSeparator: "__"}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Database.UserName != "alice" {
+		t.Errorf("expected alice, got %q", s.Database.UserName)
+	}
+
+	// Default Process still uses a single underscore when set.
+	os.Clearenv()
+	os.Setenv("MYAPP_DATABASE_USER_NAME", "bob")
+	var s2 Spec
+	if err := Process("myapp", &s2); err != nil {
+		t.Fatal(err)
+	}
+	if s2.Database.UserName != "bob" {
+		t.Errorf("expected bob, got %q", s2.Database.UserName)
+	}
+}
+
+func TestProcessDefaultWithDoubleUnderscoreAlternative(t *testing.T) {
+	type Database struct {
+		UserName string `split_words:"true"`
+	}
+	type Spec struct {
+		Database Database
+	}
+	os.Clearenv()
+	os.Setenv("MYAPP__DATABASE__USER_NAME", "alice")
+	var s Spec
+	if err := Process("myapp", &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Database.UserName != "alice" {
+		t.Errorf("expected alice, got %q", s.Database.UserName)
+	}
+}
+
+func TestProcessWithNestedMultipleLevels(t *testing.T) {
+	type Pool struct {
+		MaxSize int `split_words:"true"`
+	}
+	type Database struct {
+		Pool Pool
+	}
+	type Spec struct {
+		Database Database
+	}
+	os.Clearenv()
+	os.Setenv("MYAPP__DATABASE__POOL__MAX_SIZE", "50")
+	var s Spec
+	if err := ProcessWith("myapp", &s, Options{NestedSeparator: "__"}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Database.Pool.MaxSize != 50 {
+		t.Errorf("expected 50, got %d", s.Database.Pool.MaxSize)
+	}
+}
+
+func TestProcessWithNestedEmptyPrefix(t *testing.T) {
+	type Database struct {
+		UserName string `split_words:"true"`
+	}
+	type Spec struct {
+		Database Database
+	}
+	os.Clearenv()
+	os.Setenv("DATABASE__USER_NAME", "charlie")
+	var s Spec
+	if err := ProcessWith("", &s, Options{NestedSeparator: "__"}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Database.UserName != "charlie" {
+		t.Errorf("expected charlie, got %q", s.Database.UserName)
+	}
+}
+
+func TestProcessWithNestedAnonymousStruct(t *testing.T) {
+	type Database struct {
+		UserName string `split_words:"true"`
+	}
+	type EmbeddedDB struct {
+		Database Database
+	}
+	type Spec struct {
+		EmbeddedDB
+		Port int
+	}
+	os.Clearenv()
+	os.Setenv("MYAPP__DATABASE__USER_NAME", "dave")
+	os.Setenv("MYAPP__PORT", "9000")
+	var s Spec
+	if err := ProcessWith("myapp", &s, Options{NestedSeparator: "__"}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Database.UserName != "dave" {
+		t.Errorf("expected dave, got %q", s.Database.UserName)
+	}
+	if s.Port != 9000 {
+		t.Errorf("expected 9000, got %d", s.Port)
+	}
+}
+
+func TestMustProcessWith(t *testing.T) {
+	type Database struct {
+		Host string
+	}
+	type Spec struct {
+		Database Database
+	}
+	os.Clearenv()
+	os.Setenv("MYAPP__DATABASE__HOST", "localhost")
+	var s Spec
+	MustProcessWith("myapp", &s, Options{NestedSeparator: "__"})
+	if s.Database.Host != "localhost" {
+		t.Errorf("expected localhost, got %q", s.Database.Host)
+	}
+
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("expected panic")
+		}
+	}()
+	m := make(map[string]string)
+	MustProcessWith("myapp", &m, Options{NestedSeparator: "__"})
+}
+
+func TestCheckDisallowedWith(t *testing.T) {
+	type Database struct {
+		Host string
+	}
+	type Spec struct {
+		Database Database
+	}
+	os.Clearenv()
+	os.Setenv("MYAPP__DATABASE__HOST", "localhost")
+	var s Spec
+	if err := CheckDisallowedWith("myapp", &s, Options{NestedSeparator: "__"}); err != nil {
+		t.Errorf("expected valid, got: %s", err)
+	}
+
+	os.Setenv("MYAPP__UNKNOWN", "bad")
+	if err := CheckDisallowedWith("myapp", &s, Options{NestedSeparator: "__"}); err == nil {
+		t.Error("expected error for unknown environment variable")
+	}
+}
+
+func TestUsageWithNestedSeparator(t *testing.T) {
+	type Database struct {
+		Host string `desc:"database host"`
+	}
+	type Spec struct {
+		Database Database
+	}
+	var s Spec
+	var buf bytes.Buffer
+	if err := UsagefWith("myapp", &s, &buf, "{{range .}}{{usage_key .}} {{usage_description .}}\n{{end}}", Options{NestedSeparator: "__"}); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	expected := "MYAPP__DATABASE__HOST database host\n"
+	if out != expected {
+		t.Errorf("expected %q, got %q", expected, out)
+	}
 }
 
 func BenchmarkGatherInfo(b *testing.B) {
