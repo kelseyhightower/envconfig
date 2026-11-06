@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -860,5 +861,31 @@ func BenchmarkGatherInfo(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var s Specification
 		gatherInfo("env_config", &s)
+	}
+}
+
+func TestEnvironKey(t *testing.T) {
+	const mixed = "app_Unknown"
+	got := environKey(mixed)
+	if runtime.GOOS == "windows" {
+		if got != "APP_UNKNOWN" {
+			t.Fatalf("environKey(%q) = %q, want APP_UNKNOWN on windows", mixed, got)
+		}
+		return
+	}
+	if got != mixed {
+		t.Fatalf("environKey(%q) = %q, want original spelling on %s", mixed, got, runtime.GOOS)
+	}
+}
+
+func TestCheckDisallowedLowercasePrefixPreservedOnUnix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("windows environment keys are case-insensitive")
+	}
+	var s struct{ Known string }
+	os.Clearenv()
+	os.Setenv("app_unknown", "x")
+	if err := CheckDisallowed("app", &s); err != nil {
+		t.Fatalf("lowercase keys must remain distinct on %s: %v", runtime.GOOS, err)
 	}
 }
