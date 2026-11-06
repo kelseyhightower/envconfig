@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -168,16 +169,31 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	}
 
 	for _, env := range os.Environ() {
-		if !strings.HasPrefix(env, prefix) {
+		v := strings.SplitN(env, "=", 2)[0]
+		// Process uses LookupEnv, which is case-insensitive on Windows. Match
+		// that when scanning os.Environ(), which preserves the original key
+		// spelling and would otherwise miss lowercase-prefixed unknowns.
+		key := environKey(v)
+		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
-		v := strings.SplitN(env, "=", 2)[0]
-		if _, found := vars[v]; !found {
+		if _, found := vars[key]; !found {
 			return fmt.Errorf("unknown environment variable %s", v)
 		}
 	}
 
 	return nil
+}
+
+// environKey normalizes an environment variable name for CheckDisallowed.
+// On Windows, environment lookups are case-insensitive, so keys are uppercased
+// to align with gatherInfo and with Process/LookupEnv. Elsewhere the original
+// spelling is preserved because Unix environment keys are case-sensitive.
+func environKey(key string) string {
+	if runtime.GOOS == "windows" {
+		return strings.ToUpper(key)
+	}
+	return key
 }
 
 // Process populates the specified struct based on environment variables
